@@ -1,0 +1,100 @@
+  ## Project summary
+
+- Vue 3 + Vite SPA for a Faculty Evaluation System.
+- Key libraries: Vue 3 (Composition API), Pinia, Firebase (Auth + Firestore), Bootstrap 5, DataTables (datatables.net-vue3), Chart.js.
+
+## High-level architecture & data flow
+
+- Entry: `src/main.js` → root `src/App.vue`. Views grouped under `src/views/` by feature (each feature has local `components/` for modals, forms, etc.).
+- State: Pinia stores in `src/store/` (files named like `*Store.js` and using `defineStore(name, () => { ... })`). Stores expose refs (state), computed getters, and async actions that call Firestore.
+- Firebase: `src/firebase.js` exports `{ auth, db, app }`. Firestore collection names live in `src/constants/dbCollections.js` as `COLLECTIONS` — prefer these constants everywhere.
+
+## Stores — concrete patterns and contract
+
+- Contract: stores return `{ state refs, loading, error, getters, actions }`. Actions follow a predictable CRUD naming: `fetchX`, `addX`, `updateX`, `deleteX`.
+- Loading/error pattern: set `loading.value = true` and `error.value = null` at start of async actions; set `loading.value = false` in finally; set `error.value = err.message` on catch. Components rely on these refs.
+- Firestore usage examples from the repo:
+
+  - Read documents (collection):
+    `const snapshot = await getDocs(collection(db, COLLECTIONS.EVALUATIONS))`
+
+  - Query with where (users -> students):
+    `const q = query(collection(db, COLLECTIONS.USERS), where('role','==','student'))`
+
+  - Add with auto-id:
+    `const docRef = await addDoc(collection(db, COLLECTIONS.USERS), { ... })`
+
+  - Upsert with custom id (used in `evaluationStore`):
+    `const docRef = doc(db, COLLECTIONS.EVALUATIONS, newId); await setDoc(docRef, {...data, id: newId})`
+
+Edge cases to follow: empty snapshots, network errors, Firestore permission errors — surface `error` and avoid silent failures.
+
+Files to inspect for examples: `src/store/evaluationStore.js`, `src/store/studentStore.js`, `src/store/facultyStore.js`.
+
+## Router & auth guard (practical notes)
+
+- Router is in `src/router/index.js`. Routes are lazy-loaded and grouped under `/` (auth), `/evaluations`, and `/main` (app proper).
+- Auth pattern: routes that require login have `meta: { requiresAuth: true }`. A global `beforeEach` uses `useAuthStore()` to wait for `authStore.loading` to finish then checks `authStore.isAuthenticated` and redirects accordingly.
+
+  - Important: the guard waits for `authStore.loading` to stop by subscribing to the store — don't bypass that logic when adding new protected routes.
+
+Example routes to reference: `evaluation/:evaluationId/teacher/:teacherId` (student evaluation flow) and nested `EvaluationForm` routes under `/main/form`.
+
+## Common UI patterns
+
+- Button component: `src/components/Buttons.vue` is the canonical button used across the app. Important props:
+  - `to` → pushes route with `router.push(to)`
+  - `goBack` → calls `router.back()`
+  - `dataBsToggle` / `dataBsTarget` → used for Bootstrap-driven modals
+  - `iconLeft` / `iconRight`, `variant`, `styleType`, `size`
+
+  Use this Button component instead of raw `<button>` to keep UI consistent.
+
+- Modal pattern: `src/components/Modal.vue` implements a lightweight modal with `v-model` via `update:modelValue`. It exposes named slots `header`, `modal-body`, and `footer`. The modal listens for Escape and cleans up listeners on unmount.
+
+  Example usage in a parent:
+
+  ```vue
+  <Modal v-model="showUserModal">
+    <template #header>New User</template>
+    <template #modal-body>...form...</template>
+    <template #footer>...actions...</template>
+  </Modal>
+  ```
+
+- DataTables: datatables are integrated with `datatables.net-vue3` and `datatables.net-bs5`. Some views may still initialize tables via jQuery — search for `DataTable` when editing table code and keep an eye on DOM lifecycle hooks.
+
+## Styles & theming
+
+- Styling uses Less under `src/styles/`. Global variables are in `src/styles/core/variables.less`. Theme files are in `src/styles/themes/` (dark/light).
+- The theme switcher uses `src/composables/useTheme.js` — prefer that composable when adding theme-aware UI.
+
+## Integration & files to avoid changing lightly
+
+- `src/firebase.js` contains active Firebase config — don't overwrite unless rotating keys intentionally.
+- `dist/` contains build artifacts — do not edit.
+
+## Quick checks and developer commands
+
+- Install and run dev server:
+  `npm install`
+  `npm run dev`
+
+- Build & lint:
+  `npm run build`
+  `npm run lint`
+
+- Deploy (hosted in Firebase):
+  `npm run build`
+  `firebase deploy --only hosting`
+
+## Troubleshooting tips for AI edits
+
+- Always use `COLLECTIONS` constants when referencing Firestore collections.
+- Match the store `loading`/`error` pattern so components can rely on those flags for spinners and error displays.
+- When changing routes, keep `meta.requiresAuth` and ensure the `beforeEach` guard logic still makes sense (it waits for `authStore.loading`).
+- For UI changes, prefer updating `Buttons.vue` and `Modal.vue` to keep consistent behavior across the app.
+
+---
+
+If you'd like, I can also add a short examples section per-store (evaluation, student, faculty) showing full action implementations and a sample unit test for a store action. Tell me which area you want deeper examples for.

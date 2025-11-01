@@ -1,0 +1,47 @@
+@import (reference) "../mixins/icon-buttons.less";
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+
+    .page-item {
+        .page-link {
+            background-color: @hover;
+            height: 48px;
+            width: 48px;
+            border-radius: 99px;
+            border: none;
+            transition: all 0.2s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: @text-primary;
+
+            &:hover {
+                background-color: fade(@primary, 16%);
+                color: @primary;
+                transform: translateY(-1px);
+                border: none;
+            }
+        }
+
+        &.disabled {
+            .page-link {
+                background-color: @hover;
+                color: @text-disabled;
+                cursor: not-allowed;
+                pointer-events: none;
+                color: @text-disabled;
+                box-shadow: none;
+                border-radius: 99px
+            }
+        }
+
+        &.active {
+            .page-link {
+                .btn--filled-primary();
+            }
+        }
+    }
+}

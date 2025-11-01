@@ -1,0 +1,128 @@
+// == Table ==
+table.dataTable {
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: @text-primary;
+    background-color: @bg-body !important;
+    thead {
+        th {
+            .table-header();
+            color: @text-primary;
+            text-transform: uppercase;
+            border: none;
+            border-top: 1px solid @divider;
+            border-bottom: 1px solid @divider;
+            background-color: @bg-body !important;
+            padding: 16px;
+        }
+    }
+    tbody {
+        td {
+            .body1();
+            padding: 10px 16px;
+            vertical-align: middle;
+            border: none;
+            border-bottom: 1px solid @divider;
+            color: @text-primary;
+            background-color: @bg-body !important;
+        }
+        tr:hover td {
+            cursor: pointer;
+            background-color: @hover;
+        }
+    }
+}
+
+.dt-container .dt-layout-start,
+.dt-container .dt-layout-end {
+    margin: 0px;
+    padding: 0px 16px 8px 16px;
+}
+.dt-layout-full {
+    padding: 0;
+    margin: 0;
+}
+// == Entries Dropdown ==
+.dt-length select {
+    .body1();
+    color: @text-secondary;
+    border-radius: 6px;
+    padding: 7px 24px 7px 14px;
+    border: 1px solid @divider;
+    background-color: @bg-body;
+}
+.dt-length label {
+    .body1();
+    color: @text-secondary;
+}
+// == Search Box ==
+.dt-search {
+    label {
+        .body1();
+        color: @text-secondary;
+    }
+    input[type="search"] {
+        border-radius: 6px;
+        font-size: 14px;
+        padding: 4px 12px;
+        border: 1px solid @divider;
+        width: 200px;
+        color: @text-primary;
+        background-color: @bg-body;
+    }
+}
+// == Info Text ==
+.dt-info {
+    .body1();
+    color: @text-disabled;
+}
+// == Empty, Loading, Processing states ==
+.dataTables_empty,
+.dataTables_processing,
+.dt-empty,
+.dt-processing {
+    td {
+        text-align: center;
+        padding: 24px;
+    }
+    p {
+        .body1();
+        color: @text-primary;
+    }
+    .icon {
+        font-family: "Material Symbols Rounded";
+        font-size: 40px;
+        color: @text-primary;
+    }
+}
+
+.dt-column-order::before{
+    content: "keyboard_arrow_up" !important; 
+    font-family: "Material Symbols Rounded";
+    vertical-align: middle;
+    transform: scale(2.3);
+    margin-bottom: 4px;
+}
+
+.dt-column-order::after {
+    content: "keyboard_arrow_down" !important; 
+    font-family: "Material Symbols Rounded";
+    vertical-align: middle;
+    transform: scale(2.3);
+    margin-top: 4px;
+}
+
+.dt-column-order {
+    opacity: 0;
+}
+
+/* Hide icons by default */
+th:hover .dt-column-order {
+    opacity: 1;
+}
+
+th[aria-sort="ascending"] .dt-column-order,
+th[aria-sort="descending"] .dt-column-order{
+    opacity: 1;
+}

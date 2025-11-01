@@ -1,0 +1,114 @@
+@import (reference) "../mixins/icon-buttons.less";
+
+.icon-btn {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    transition: all 0.1s linear;
+    padding-block: 0px;
+    .ch5();
+
+    &.is-disabled {
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    &--sm {
+        padding: 4px;
+        border-radius: 4px;
+    }
+    &--md {
+        height: 38px;
+        width: 38px;
+        border-radius: 99px;
+    }
+    &--lg {
+        height: 42px;
+        width: 42px;
+        border-radius: 8px;
+    }
+
+    .icon {
+        font-family: "Material Symbols Rounded";
+        font-size: 22px;
+        align-self: center;
+        justify-self: center;
+    }
+}
+
+//==Variants for each color
+
+// Primary Main
+.btn--filled-primary-main {
+    .button-filled(@primary);
+}
+.btn--outline-primary-main {
+    .button-outline(@primary);
+}
+.btn--label-primary-main {
+    .button-label(@primary);
+}
+// Secondary
+.btn--filled-secondary {
+    .button-filled(@secondary);
+}
+.btn--outline-secondary {
+    .button-outline(@secondary);
+}
+.btn--label-secondary {
+    .button-label(@secondary);
+}
+// Success
+.btn--filled-success {
+    .button-filled(@success);
+}
+.btn--outline-success {
+    .button-outline(@success);
+}
+.btn--label-success {
+    .button-label(@success);
+}
+// Info
+.btn--filled-info {
+    .button-filled(@info);
+}
+.btn--outline-info {
+    .button-outline(@info);
+}
+.btn--label-info {
+    .button-label(@info);
+}
+// Danger
+.btn--filled-danger {
+    .button-filled(@danger);
+}
+.btn--outline-danger {
+    .button-outline(@danger);
+}
+.btn--label-danger {
+    .button-label(@danger);
+}
+// Warning
+.btn--filled-warning {
+    .button-filled(@warning);
+}
+.btn--outline-warning {
+    .button-outline(@warning);
+}
+.btn--label-warning {
+    .button-label(@warning);
+}
+// Transparent
+.btn--transparent {
+    .button-transparent(@secondary);
+}
+
+// Edit
+.btn--edit {
+    .button-edit(@info);
+}
+// Delete
+.btn--delete {
+    .button-delete(@danger);
+}

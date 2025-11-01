@@ -1,0 +1,35 @@
+.form-group {
+  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  
+  .form-label {
+    margin-bottom: 0;
+    color: @text-primary;
+    .input-label();
+  }
+
+  .form-control, .form-select{
+    .input-text();
+    border: 1px solid @input-border;
+    border-radius: 6px;
+    padding: 7px 14px;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+    &:focus {
+      border-color: @primary;
+      box-shadow: 0 0 0 1px @primary;
+      outline: none;
+    }
+
+    &.is-invalid {
+      border-color: @danger;
+      box-shadow: 0 0 0 3px fade(@danger, 16%);
+    }
+    
+    &.disabled, &[disabled] {
+      opacity: .45;
+      background-color: transparent;
+    }
+  }
+}

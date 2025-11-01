@@ -1,0 +1,115 @@
+.button-filled(@color) {
+    background-color: @color;
+    color: @white-color;
+    border: none;
+    box-shadow: 0px 2px 4px fade(@color, 40%);
+    &:hover {
+        transform: translateY(-1px);
+        background-color: darken(@color, 7%);
+        box-shadow: 0px 2px 4px fade(darken(@color, 7%), 40%);
+    }
+    &:active {
+        background-color: darken(@color, 7%);
+        box-shadow: 0px 2px 4px fade(darken(@color, 7%), 40%);
+    }
+    &.is-disabled {
+        background-color: fade(@color, 45%);
+        box-shadow: none;
+    }
+}
+.button-outline(@color) {
+    background-color: transparent;
+    color: @color;
+    border: none;
+    box-shadow: 0px 0px 0px 1px @color inset;
+    &:hover {
+        color: @white-color;
+        background-color: @color;
+        transform: translateY(-1px);
+    }
+    &:active {
+        color: @white-color;
+        background-color: darken(@color, 7%);
+    }
+    &.is-disabled {
+        border-color: fade(@color, 45%);
+        color: fade(@color, 45%);
+        box-shadow: none;
+    }
+}
+.button-label(@color) {
+    background-color: fade(@color, 16%);
+    color: @color;
+    border: none;
+    &:hover {
+        color: @white-color;
+        background-color: @color;
+        transform: translateY(-1px);
+    }
+    &:active {
+        color: @white-color;
+        background-color: darken(@color, 7%);
+    }
+    &.is-disabled {
+        border-color: fade(@color, 45%);
+        color: fade(@color, 45%);
+        box-shadow: none;
+    }
+}
+.button-transparent(@color) {
+    background-color: transparent;
+    color: @text-primary;
+    border: none;
+    box-shadow: none;
+    &:hover {
+        background-color: @hover;
+        transform: translateY(-1px);
+    }
+    &:active {
+        background-color: fade(@color, 7%);
+    }
+    &.is-disabled {
+        pointer-events: none;
+        background-color: transparent;
+    }
+}
+
+.button-delete(@color) {
+    background-color: transparent;
+    color: @text-primary;
+    border: none;
+    box-shadow: none;
+    &:hover {
+        color: @color;
+        background-color: @danger-opacity-light;
+        transform: translateY(-1px);
+    }
+    &:active {
+        color: @color;
+        background-color: fade(@color, 7%);
+    }
+    &.is-disabled {
+        pointer-events: none;
+        background-color: transparent;
+    }
+}
+
+.button-edit(@color) {
+    background-color: transparent;
+    color: @text-primary;
+    border: none;
+    box-shadow: none;
+    &:hover {
+        color: @color;
+        background-color: @info-opacity-light;
+        transform: translateY(-1px);
+    }
+    &:active {
+        color: @color;
+        background-color: fade(@color, 7%);
+    }
+    &.is-disabled {
+        pointer-events: none;
+        background-color: transparent;
+    }
+}
