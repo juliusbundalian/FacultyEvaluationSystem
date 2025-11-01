@@ -34,39 +34,34 @@
                 <div class="form-text text-muted">Max 1000 characters</div>
               </div>
 
-              <!-- Start Date -->
-              <div class="mb-3 form-group">
-                <label class="form-label">Start Date</label>
-                <input
-                  type="date"
-                  v-model="form.startDate"
-                  class="form-control"
-                  :min="today"
-                  @change="onStartDateChange"
-                  required
-                />
+              <!-- Dates: compact grid layout -->
+              <div class="mb-3">
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      v-model="form.startDate"
+                      class="form-control form-control-sm"
+                      :min="today"
+                      @change="onStartDateChange"
+                      required
+                    />
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label mb-1">End Date</label>
+                    <input
+                      type="date"
+                      v-model="form.endDate"
+                      class="form-control form-control-sm"
+                      :min="form.startDate || today"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
 
-              <!-- End Date -->
-              <div class="mb-3 form-group">
-                <label class="form-label">End Date</label>
-                <input
-                  type="date"
-                  v-model="form.endDate"
-                  class="form-control"
-                  :min="form.startDate || today"
-                  required
-                />
-              </div>
-
-              <!-- Status -->
-              <div class="mb-3 form-group">
-                <label class="form-label">Status</label>
-                <select v-model="form.status" class="form-select" required>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
+              
             </div>
 
             <div class="modal-footer">
@@ -126,7 +121,6 @@ export default {
       evaluationDescription: '',
       startDate: '',
       endDate: '',
-      status: 'Active',
     })
 
     const today = new Date().toISOString().split('T')[0]
@@ -138,7 +132,6 @@ export default {
         evaluationName: '',
         startDate: '',
         endDate: '',
-        status: 'Active',
       }
     }
 
@@ -182,16 +175,11 @@ export default {
       () => form.value.endDate && new Date(form.value.endDate) >= new Date(form.value.startDate),
     )
 
-    const isValidStatus = computed(
-      () => form.value.status === 'Active' || form.value.status === 'Inactive',
-    )
-
     const isFormValid = computed(
       () =>
         isValidName.value &&
         isValidStartDate.value &&
         isValidEndDate.value &&
-        isValidStatus.value &&
         isValidDescription.value,
     )
 
@@ -217,15 +205,13 @@ export default {
         return (
           form.value.evaluationName.trim() !== props.evaluation.evaluationName ||
           form.value.startDate !== props.evaluation.startDate ||
-          form.value.endDate !== props.evaluation.endDate ||
-          form.value.status !== props.evaluation.status
+          form.value.endDate !== props.evaluation.endDate
         )
       }
       return (
         form.value.evaluationName.trim() !== '' ||
         form.value.startDate !== '' ||
-        form.value.endDate !== '' ||
-        form.value.status !== 'Active'
+        form.value.endDate !== ''
       )
     })
 

@@ -125,20 +125,17 @@ const activeEvaluation = computed(() => {
   return evals.find((ev) => {
     const start = ev.startDate ? new Date(ev.startDate) : null
     const end = ev.endDate ? new Date(ev.endDate) : null
-    const isActive = (ev.status || '').toLowerCase() === 'active'
 
     if (start) start.setHours(0, 0, 0, 0)
     if (end) end.setHours(23, 59, 59, 999)
 
-    const inRange = (!start || now >= start) && (!end || now <= end)
-    return isActive && inRange
+    return (!start || now >= start) && (!end || now <= end)
   })
 })
 
 // countdown timer
 const remaining = ref('')
 const _timerId = { value: null }
-const hasClosed = ref(false)
 
 const formatRemaining = (ms) => {
   if (ms <= 0) return 'Closed'
@@ -161,22 +158,9 @@ const updateRemaining = () => {
   const now = new Date()
   const diff = end - now
   remaining.value = formatRemaining(diff)
-  // if time elapsed and evaluation still active, close it
-  if (diff <= 0 && ev && (ev.status || '').toLowerCase() === 'active' && !hasClosed.value) {
-    // mark closed in Firestore via store
-    closeEvaluation(ev.id)
-  }
+  // once time elapsed, watcher on activeEvaluation will stop timer
 }
 
-const closeEvaluation = async (id) => {
-  try {
-    hasClosed.value = true
-    await evaluationStore.updateEvaluation(id, { status: 'Closed' })
-  } catch (err) {
-    console.error('Failed to close evaluation automatically', err)
-    hasClosed.value = false
-  }
-}
 
 const startTimer = () => {
   stopTimer()
