@@ -10,8 +10,35 @@
       </div>
     </div>
 
-    <div v-if="loading" class="text-center py-4">
-      <div class="spinner-border text-primary" role="status"></div>
+    <div v-if="loading" class="py-4">
+      <div v-if="isAdmin && !route.query.studentId">
+        <!-- Skeleton for Summary card while loading (per criteria) -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="mb-2">Summary — Average score per criteria</h5>
+            <div class="avg-skeleton">
+              <div v-for="i in 3" :key="'sk-crit-'+i" class="d-flex justify-content-between align-items-center py-2">
+                <div class="skeleton skeleton-text me-3"></div>
+                <div class="skeleton skeleton-badge"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skeleton for Student Responses list -->
+        <ul class="list-group">
+          <h5 class="mb-3">Student Responses</h5>
+          <li v-for="k in 3" :key="'sk-load-li-'+k" class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="skeleton skeleton-text" style="width: 180px"></div>
+              <div class="skeleton skeleton-badge"></div>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div v-else class="text-center">
+        <div class="spinner-border text-primary" role="status"></div>
+      </div>
     </div>
 
     <div v-else>
@@ -22,22 +49,58 @@
           </div>
 
           <div v-else>
-            <!-- Averages summary -->
-            <div v-if="averagesByCriteria.length > 0" class="card mb-3">
-              <div class="card-body">
-                <h5 class="mb-2">Summary — Average score per question</h5>
-                <div v-for="c in averagesByCriteria" :key="c.id" class="mb-2">
-                  <div class="fw-semibold mb-1">{{ c.name }}</div>
-                  <ul class="list-unstyled mb-1">
-                    <li
-                      v-for="q in c.questions"
-                      :key="q.id"
-                      class="d-flex justify-content-between align-items-center py-1"
+            <!-- Averages summary (per criteria) with toggle for Chart/Table -->
+            <div v-if="averagesByCriteria.length > 0" class="card mb-3 criteria-card">
+              <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">Summary — Average score per criteria</h6>
+                  <div class="btn-group btn-group-sm" role="group" aria-label="View toggle">
+                    <button
+                      type="button"
+                      class="btn"
+                      :class="criteriaViewMode === 'chart' ? 'btn-primary' : 'btn-outline-primary'"
+                      @click="setCriteriaView('chart')"
                     >
-                      <div class="small text-muted">{{ q.text }}</div>
-                      <div class="badge bg-secondary text-white">{{ q.avg }}</div>
-                    </li>
-                  </ul>
+                      Chart
+                    </button>
+                    <button
+                      type="button"
+                      class="btn"
+                      :class="criteriaViewMode === 'table' ? 'btn-primary' : 'btn-outline-primary'"
+                      @click="setCriteriaView('table')"
+                    >
+                      Table
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="criteriaSummary.length === 0" class="text-muted small">No criteria data.</div>
+
+                <div v-else>
+                  <div v-if="criteriaViewMode === 'chart'" class="criteria-chart-wrap">
+                    <canvas ref="criteriaChartRef"></canvas>
+                  </div>
+
+                  <div v-else class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr class="small text-muted">
+                          <th style="width:64px">Rank</th>
+                          <th>Criteria</th>
+                          <th style="width:120px" class="text-end">Average</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="row in criteriaSummary" :key="row.id">
+                          <td class="small">{{ row.rank }}</td>
+                          <td>
+                            <div class="truncate" :title="row.name">{{ row.name }}</div>
+                          </td>
+                          <td class="text-end fw-semibold">{{ row.avg.toFixed(2) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -127,6 +190,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import { useRoute, useRouter } from 'vue-router'
 import { useStudentStore } from '@/store/studentStore'
 import { useAuthStore } from '@/store/authStore'
@@ -148,6 +212,109 @@ const groupedAnswers = ref([])
 const submissions = ref([]) // list of response docs for admin
 const averagesByCriteria = ref([])
 const studentStore = useStudentStore()
+
+// Chart.js setup for per-criteria averages (horizontal bar)
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
+const criteriaChartRef = ref(null)
+let criteriaChart = null
+const criteriaViewMode = ref('chart')
+
+const criteriaSummary = computed(() => {
+  const items = (averagesByCriteria.value || [])
+    .filter((c) => c && typeof c.avg === 'number' && !Number.isNaN(c.avg))
+    .map((c) => ({ id: c.id, name: c.name || 'Criteria', avg: Number(c.avg) }))
+  items.sort((a, b) => (b.avg || 0) - (a.avg || 0))
+  let lastAvg = null
+  let lastRank = 0
+  return items.map((it, idx) => {
+    if (lastAvg === null || it.avg !== lastAvg) {
+      lastRank = idx + 1
+      lastAvg = it.avg
+    }
+    return { ...it, rank: lastRank }
+  })
+})
+
+const setCriteriaView = (mode) => {
+  criteriaViewMode.value = mode
+  const evalId = route.params.evaluationId
+  const teacherId = route.params.teacherId
+  try { localStorage.setItem(`teacherCriteriaView:${evalId}:${teacherId}`, mode) } catch (e) {}
+}
+
+const renderCriteriaChart = async () => {
+  await nextTick()
+  const canvas = criteriaChartRef.value
+  if (!canvas || criteriaViewMode.value !== 'chart') return
+
+  const labelsRaw = (criteriaSummary.value || []).map((c) => c.name)
+  const labels = labelsRaw.map((n) => (n.length > 28 ? n.slice(0, 27) + '…' : n))
+  const data = (criteriaSummary.value || []).map((c) => Number(c.avg?.toFixed(2)) || 0)
+
+  try {
+    if (criteriaChart) {
+      criteriaChart.destroy()
+      criteriaChart = null
+    }
+  } catch (_) {
+    // ignore destroy errors
+  }
+
+  const ctx = canvas.getContext('2d')
+  // compact: tight height per bar
+  if (labels.length > 0) {
+    const desired = Math.max(200, labels.length * 26)
+    if (canvas.height !== desired) canvas.height = desired
+  }
+
+  criteriaChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Average',
+          data,
+          backgroundColor: '#4f46e5',
+          borderRadius: 4,
+          barThickness: 12,
+          categoryPercentage: 0.9,
+          barPercentage: 0.9,
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { left: 4, right: 8, top: 4, bottom: 4 } },
+      scales: {
+        x: {
+          min: 1,
+          max: 5,
+          ticks: { stepSize: 1, color: '#6b7280', font: { size: 10 } },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        y: {
+          ticks: { color: '#374151', font: { size: 11 }, autoSkip: false },
+          grid: { display: false },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const i = items?.[0]?.dataIndex ?? 0
+              return labelsRaw[i] || ''
+            },
+            label: (ctx) => `Average: ${ctx.raw}`,
+          },
+        },
+      },
+    },
+  })
+}
 
 const isAdmin = computed(() =>
   (authStore.userData?.role || '').toString().toLowerCase().includes('admin'),
@@ -213,6 +380,15 @@ const goBack = () => {
 watch(
   () => route.query.studentId,
   async (newVal, oldVal) => {
+    // If switching to a specific student's view, remove the chart (canvas not rendered in that branch)
+    if (newVal) {
+      try {
+        if (criteriaChart) criteriaChart.destroy()
+      } catch (_) {
+        // ignore
+      }
+      criteriaChart = null
+    }
     // when studentId is removed (admin clicked back), reload submissions list
     if (!newVal) {
       loading.value = true
@@ -241,8 +417,8 @@ watch(
               : data.studentName || data.studentId,
           }
         })
-        // compute averages for header
-        computeAverages(submissions.value)
+  // compute averages for header and keep shimmer until ready
+  await computeAverages(submissions.value)
         responseDoc.value = null
         groupedAnswers.value = []
       } catch (err) {
@@ -378,21 +554,24 @@ const computeAverages = async (subs) => {
   for (const c of criterias) {
     await questionStore.fetchQuestionsByCriteria(c.id)
     const qs = questionStore.questions || []
-    const questions = []
+    let weightedSum = 0
+    let totalCount = 0
     for (const q of qs) {
       const st = stats[q.id]
-      const avg = st && st.count ? st.sum / st.count : null
-      if (avg !== null) {
-        questions.push({
-          id: q.id,
-          text: q.questionText || q.id,
-          avg: Number(avg.toFixed(2)),
-          count: st.count,
-        })
+      if (st && st.count) {
+        const avg = st.sum / st.count
+        weightedSum += avg * st.count
+        totalCount += st.count
       }
     }
-    if (questions.length > 0)
-      groups.push({ id: c.id, name: c.criteriaName || c.criteria || 'Criteria', questions })
+    if (totalCount > 0) {
+      const cavg = weightedSum / totalCount
+      groups.push({
+        id: c.id,
+        name: c.criteriaName || c.criteria || 'Criteria',
+        avg: Number(cavg.toFixed(2)),
+      })
+    }
   }
 
   averagesByCriteria.value = groups
@@ -418,6 +597,11 @@ onMounted(async () => {
     const isAdmin = currentRole.includes('admin')
 
     if (isAdmin) {
+      // restore view mode preference for this teacher under this evaluation
+      try {
+        const saved = localStorage.getItem(`teacherCriteriaView:${evaluationId}:${teacherId}`)
+        if (saved === 'chart' || saved === 'table') criteriaViewMode.value = saved
+      } catch (_) {}
       // If a studentId is present in the route, load that student's response
       if (routeStudentId) {
         const rQ = query(
@@ -457,8 +641,8 @@ onMounted(async () => {
               : data.studentName || data.studentId,
           }
         })
-        // compute averages per question across all submissions
-        computeAverages(submissions.value)
+  // compute averages per question across all submissions and keep shimmer until ready
+  await computeAverages(submissions.value)
         // don't set responseDoc yet; admin should pick a student to view
         responseDoc.value = null
       }
@@ -529,6 +713,32 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+// Update or create chart whenever averages change and component is not loading
+// Render/destroy chart on data or mode changes
+watch([criteriaSummary, () => criteriaViewMode.value], () => {
+  if (!loading.value && criteriaViewMode.value === 'chart' && criteriaSummary.value.length) {
+    renderCriteriaChart()
+  } else {
+    try { if (criteriaChart) criteriaChart.destroy() } catch (_) {}
+    criteriaChart = null
+  }
+})
+
+watch(loading, (isLoading) => {
+  if (!isLoading && criteriaViewMode.value === 'chart' && criteriaSummary.value.length > 0) {
+    renderCriteriaChart()
+  }
+})
+
+onUnmounted(() => {
+  try {
+    if (criteriaChart) criteriaChart.destroy()
+  } catch (_) {
+    // ignore
+  }
+  criteriaChart = null
 })
 </script>
 
@@ -614,4 +824,38 @@ onMounted(async () => {
   background-color: transparent;
   border-radius: 6px;
 }
+
+/* Criteria compact card styles */
+.criteria-card .card-body {
+  padding: 0.6rem 0.75rem !important;
+}
+.criteria-card h6 { font-weight: 600; }
+.criteria-chart-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+}
+.truncate {
+  max-width: 520px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Shimmer loader */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  position: relative;
+  background: #eee;
+  background-image: linear-gradient(90deg, #eee 0px, #f5f5f5 40px, #eee 80px);
+  background-size: 600px 100%;
+  border-radius: 6px;
+  animation: shimmer 1.2s infinite linear;
+}
+.skeleton-title { height: 16px; width: 220px; }
+.skeleton-text { height: 12px; width: 60%; max-width: 420px; }
+.skeleton-badge { height: 22px; width: 48px; border-radius: 999px; }
 </style>

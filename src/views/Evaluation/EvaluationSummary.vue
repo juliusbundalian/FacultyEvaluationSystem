@@ -61,6 +61,8 @@
       </div>
     </div>
 
+    
+
     <div class="card mb-3">
       <div class="card-body">
         <h5 class="mb-3">Evaluated Teachers</h5>
@@ -168,6 +170,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const evaluationId = route.params.evaluationId
+
 
     // subscribe to real-time evaluation updates so status/time reflect automatically
     evaluationStore.subscribeEvaluations()
@@ -281,7 +284,7 @@ onMounted(async () => {
     }
     numberOfQuestions.value = qCount
 
-    // render charts after DOM update
+  // render charts after DOM update (general charts)
     await nextTick()
     try {
       console.log('Creating charts...', {
@@ -451,6 +454,8 @@ const goBack = () => {
   // navigate back to the main evaluation list under /main
   router.push('/main/evaluation')
 }
+
+// (Criteria Summary toggle is intentionally removed on this page per request)
 </script>
 
 <style scoped lang="less">
@@ -523,6 +528,9 @@ const goBack = () => {
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
 }
+
+/* Criteria compact card styles */
+/* (Removed criteria-card/table styles from this page) */
 
 /* typography tweaks to match other views */
 .ch4 {
