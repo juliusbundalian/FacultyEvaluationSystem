@@ -5,8 +5,11 @@
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <div class="ch4 mb-1">{{ evaluation?.evaluationName || 'Evaluation' }}</div>
-            <div class="small text-muted mb-2">
-              {{ formatDate(evaluation?.startDate) }} — {{ formatDate(evaluation?.endDate) }}
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <div class="small text-muted">
+                {{ formatDate(evaluation?.startDate) }} — {{ formatDate(evaluation?.endDate) }}
+              </div>
+              <span v-if="statusText" class="badge rounded-pill" :class="statusClass">{{ statusText }}</span>
             </div>
 
             <div class="fw-semibold mb-1">Description</div>
@@ -19,6 +22,9 @@
             <div class="timer-badge">
               <span class="icon me-1" style="font-size: 18px">timer</span>
               {{ timeRemaining }}
+            </div>
+            <div class="mt-2">
+              <button class="btn btn-secondary btn-sm" @click="goBack">Back</button>
             </div>
           </div>
         </div>
@@ -88,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEvaluationStore } from '@/store/evaluationStore'
 import { useCriteriaStore } from '@/store/criteriaStore'
@@ -109,6 +115,8 @@ const studentStore = useStudentStore()
 
 const loading = ref(true)
 const evaluation = ref(null)
+const now = ref(new Date())
+let nowInterval = null
 const totalResponses = ref(0)
 const groupedStats = ref([])
 const teachers = ref([])
@@ -126,15 +134,50 @@ const formatDate = (d) => {
   return date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+const computeStatus = (e) => {
+  try {
+    if (!e) return 'Unknown'
+    const current = new Date(now.value)
+    const start = e.startDate ? new Date(e.startDate) : null
+    const end = e.endDate ? new Date(e.endDate) : null
+    if (start) start.setHours(0, 0, 0, 0)
+    if (end) end.setHours(23, 59, 59, 999)
+    if (start && end) {
+      if (current < start) return 'Upcoming'
+      if (current >= start && current <= end) return 'Active'
+      return 'Closed'
+    }
+    if (start && !end) return current < start ? 'Upcoming' : 'Active'
+    if (!start && end) return current <= end ? 'Active' : 'Closed'
+    return 'Unknown'
+  } catch (err) {
+    return 'Unknown'
+  }
+}
+
+const statusText = computed(() => computeStatus(evaluation.value))
+const statusClass = computed(() => {
+  const s = (statusText.value || '').toLowerCase()
+  if (s === 'active') return 'bg-success text-white'
+  if (s === 'upcoming') return 'bg-secondary text-white'
+  if (s === 'closed') return 'bg-danger text-white'
+  return 'bg-light text-muted'
+})
+
 onMounted(async () => {
   loading.value = true
   try {
     const evaluationId = route.params.evaluationId
 
-    // ensure evaluations loaded
+    // subscribe to real-time evaluation updates so status/time reflect automatically
+    evaluationStore.subscribeEvaluations()
+    // initial fetch (in case snapshot lags)
     await evaluationStore.fetchEvaluations()
     evaluation.value =
       (evaluationStore.evaluations || []).find((e) => e.id === evaluationId) || null
+
+    // update current time every 30s to refresh status/timeRemaining
+    nowInterval = setInterval(() => (now.value = new Date()), 30000)
 
     // fetch responses for this evaluation
     const rQ = query(collection(db, 'Responses'), where('evaluationId', '==', evaluationId))
@@ -142,18 +185,22 @@ onMounted(async () => {
     const responses = rSnap.docs.map((d) => d.data())
     totalResponses.value = responses.length
 
-    // compute time remaining
-    if (evaluation.value && evaluation.value.endDate) {
-      const end = new Date(evaluation.value.endDate)
-      const now = new Date()
-      const diff = end - now
-      if (diff <= 0) timeRemaining.value = 'Closed'
-      else {
-        const hrs = Math.floor(diff / (1000 * 60 * 60))
-        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-        timeRemaining.value = `${hrs}h ${mins}m`
-      }
+    const updateRemaining = () => {
+      if (evaluation.value && evaluation.value.endDate) {
+        const end = new Date(evaluation.value.endDate)
+        end.setHours(23, 59, 59, 999)
+        const diff = end - new Date(now.value)
+        if (diff <= 0) timeRemaining.value = 'Closed'
+        else {
+          const hrs = Math.floor(diff / (1000 * 60 * 60))
+          const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+          timeRemaining.value = `${hrs}h ${mins}m`
+        }
+      } else timeRemaining.value = 'N/A'
     }
+    updateRemaining()
+    // keep timeRemaining in sync when now or evaluation changes
+    watch([now, evaluation], updateRemaining)
 
     // build teacher counts
     const teacherMap = {}
@@ -371,6 +418,11 @@ onBeforeUnmount(() => {
   try {
     if (barChart) barChart.destroy()
   } catch (e) {}
+  if (nowInterval) {
+    clearInterval(nowInterval)
+    nowInterval = null
+  }
+  evaluationStore.unsubscribeEvaluations()
 })
 
 const getEnrolledCount = async (evaluationId) => {
@@ -393,6 +445,11 @@ const viewTeacher = (teacherId) => {
   // route to StudentEvaluationView inside Main layout so sidebar/topbar remain
   const evalId = route.params.evaluationId
   router.push({ name: 'StudentEvaluationViewMain', params: { evaluationId: evalId, teacherId } })
+}
+
+const goBack = () => {
+  // navigate back to the main evaluation list under /main
+  router.push('/main/evaluation')
 }
 </script>
 
