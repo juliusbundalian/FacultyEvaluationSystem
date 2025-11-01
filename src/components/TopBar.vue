@@ -14,7 +14,7 @@
         <div :class="showMenu ? 'col-6 col-lg-12 text-end pe-4' : 'col-12 text-end pe-4'">
           <div class="d-flex justify-content-end align-items-center gap-2">
             <div class="d-flex gap-2">
-              <!-- Theme Dropdown
+              
               <div class="dropdown" @click.stop="toggleDropdown('theme')">
                 <button class="icon-btn--md btn--transparent">
                   <span class="icon">{{ currentTheme === 'light' ? 'brightness_5' : 'bedtime' }}</span>
@@ -31,7 +31,7 @@
                     <span class="icon">bedtime</span> Night
                   </li>
                 </ul>
-              </div> -->
+              </div>
 
               <!-- Notifications Dropdown -->
               <!-- <div class="dropdown" @click.stop="toggleDropdown('notifications')">

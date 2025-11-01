@@ -63,17 +63,43 @@ export default {
     const { evaluations, loading } = storeToRefs(evaluationStore)
     const router = useRouter()
 
-    const tableKey = ref(0)
+  const tableKey = ref(0)
     const dataTableRef = ref(null)
     const isModalOpen = ref(false)
     const isEditing = ref(false)
     const selectedEvaluation = ref(null)
+  const now = ref(new Date())
+  let nowInterval = null
 
     const columns = [
       { data: 'id', title: '#' },
       { data: 'evaluationName', title: 'Name' },
-      { data: 'startDate', title: 'Start Date' },
-      { data: 'endDate', title: 'End Date' },
+      {
+        data: 'startDate',
+        title: 'Start Date',
+        render: (data, type, row) => {
+          if (!data) return ''
+          try {
+            const d = new Date(data)
+            return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+          } catch (e) {
+            return data
+          }
+        },
+      },
+      {
+        data: 'endDate',
+        title: 'End Date',
+        render: (data, type, row) => {
+          if (!data) return ''
+          try {
+            const d = new Date(data)
+            return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+          } catch (e) {
+            return data
+          }
+        },
+      },
       { data: 'status', title: 'Status' },
       {
         data: null,
@@ -96,8 +122,37 @@ export default {
       },
     ]
 
+    const computeStatus = (e) => {
+      try {
+        const current = new Date(now.value)
+        const start = e.startDate ? new Date(e.startDate) : null
+        const end = e.endDate ? new Date(e.endDate) : null
+
+        if (start && end) {
+          if (current < start) return 'Upcoming'
+          if (current >= start && current <= end) return 'Active'
+          return 'Closed'
+        }
+
+        if (start && !end) {
+          return current < start ? 'Upcoming' : 'Active'
+        }
+
+        if (!start && end) {
+          return current <= end ? 'Active' : 'Closed'
+        }
+
+        return e.status || 'Unknown'
+      } catch (err) {
+        console.error('Error computing status for evaluation', e, err)
+        return e.status || 'Unknown'
+      }
+    }
+
     const evaluationsArray = computed(() =>
-      Array.isArray(evaluations.value) ? evaluations.value.map((e) => ({ ...e })) : [],
+      Array.isArray(evaluations.value)
+        ? evaluations.value.map((e) => ({ ...e, status: computeStatus(e) }))
+        : [],
     )
 
     // 🔹 Reload DataTable when data changes
@@ -121,6 +176,12 @@ export default {
 
     onMounted(async () => {
       await refreshTable()
+
+      // start a timer to update "now" so computed statuses refresh in real time
+      nowInterval = setInterval(() => {
+        now.value = new Date()
+      }, 30000) // update every 30s
+
       const tableEl = dataTableRef.value?.$el
       if (tableEl) tableEl.addEventListener('click', handleTableClick)
     })
@@ -128,6 +189,10 @@ export default {
     onBeforeUnmount(() => {
       const tableEl = dataTableRef.value?.$el
       if (tableEl) tableEl.removeEventListener('click', handleTableClick)
+      if (nowInterval) {
+        clearInterval(nowInterval)
+        nowInterval = null
+      }
     })
 
     // 🔹 Modal Handlers

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { COLLECTIONS } from '../constants/dbCollections'
 
@@ -35,12 +35,26 @@ export const useEvaluationStore = defineStore('evaluation', () => {
 
   const addEvaluation = async (evaluationData) => {
     try {
-      const newOrder = evaluations.value.length + 1
-      const newId = `eval-${String(newOrder).padStart(3, '0')}`
+      // Ensure we have the latest evaluations so we can compute the next sequential ID
+      await fetchEvaluations()
 
+      // Extract numeric suffixes from existing ids like 'eval-001'
+      const numbers = evaluations.value
+        .map((e) => {
+          const m = typeof e.id === 'string' && e.id.match(/^eval-(\d+)$/)
+          return m ? parseInt(m[1], 10) : null
+        })
+        .filter((n) => n !== null)
+
+      const max = numbers.length ? Math.max(...numbers) : 0
+      const next = max + 1
+      const newId = `eval-${String(next).padStart(3, '0')}`
+
+      // Create the document with the new sequential ID
       const docRef = doc(db, COLLECTIONS.EVALUATIONS, newId)
       await setDoc(docRef, { ...evaluationData, id: newId })
 
+      // Append locally so UI updates immediately
       evaluations.value.push({ ...evaluationData, id: newId })
     } catch (err) {
       console.error('Error adding Evaluation:', err)
