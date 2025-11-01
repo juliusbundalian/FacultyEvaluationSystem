@@ -125,7 +125,11 @@ const activeEvaluation = computed(() => {
   return evals.find((ev) => {
     const start = ev.startDate ? new Date(ev.startDate) : null
     const end = ev.endDate ? new Date(ev.endDate) : null
-    const isActive = ev.status?.toLowerCase() === 'active'
+    const isActive = (ev.status || '').toLowerCase() === 'active'
+
+    if (start) start.setHours(0, 0, 0, 0)
+    if (end) end.setHours(23, 59, 59, 999)
+
     const inRange = (!start || now >= start) && (!end || now <= end)
     return isActive && inRange
   })
@@ -152,6 +156,8 @@ const updateRemaining = () => {
     return
   }
   const end = new Date(ev.endDate)
+  // normalize to end-of-day so countdown lasts through the entire end date
+  end.setHours(23, 59, 59, 999)
   const now = new Date()
   const diff = end - now
   remaining.value = formatRemaining(diff)
@@ -166,8 +172,6 @@ const closeEvaluation = async (id) => {
   try {
     hasClosed.value = true
     await evaluationStore.updateEvaluation(id, { status: 'Closed' })
-    // reload evaluations to ensure up-to-date
-    await evaluationStore.fetchEvaluations()
   } catch (err) {
     console.error('Failed to close evaluation automatically', err)
     hasClosed.value = false
@@ -201,6 +205,13 @@ const goToEvaluation = (id) => {
   router.push({ name: 'StudentEvaluation', params: { evaluationId: id, teacherId: '' } })
 }
 
+const getTeacherKey = (obj) => {
+  if (!obj) return null
+  const key =
+    obj.teacherId || obj.teacherID || (obj.teacher && obj.teacher.id) || obj.userId || obj.id || null
+  return key != null && key !== '' ? String(key) : null
+}
+
 const loadTeachersToEvaluate = async (evaluationId) => {
   teachersLoading.value = true
   const studentId = authStore.userData?.id || authStore.user?.uid
@@ -220,17 +231,27 @@ const loadTeachersToEvaluate = async (evaluationId) => {
       where('studentId', '==', studentId),
     )
     const respSnap = await getDocs(respQ)
-    const submittedTeacherIds = new Set(respSnap.docs.map((d) => d.data().teacherId))
+    // Collect only valid teacher ids (ignore missing/empty)
+    const submittedTeacherIds = new Set(
+      respSnap.docs
+        .map((d) => {
+          const val = d.data().teacherId
+          return val != null && val !== '' ? String(val) : null
+        })
+        .filter((v) => v !== null),
+    )
 
     teachersToEvaluate.value = allEnrolls.filter((e) => {
-      const tid = e.teacherId || e.teacher || e.id
+      const tid = getTeacherKey(e)
+      // If no teacher key in enrollment, we can't match it to any submission — show it.
+      if (!tid) return true
       return !submittedTeacherIds.has(tid)
     })
 
     // build submitted list from enrollments where teacher has submission
     submittedTeachers.value = allEnrolls.filter((e) => {
-      const tid = e.teacherId || e.teacher || e.id
-      return submittedTeacherIds.has(tid)
+      const tid = getTeacherKey(e)
+      return !!tid && submittedTeacherIds.has(tid)
     })
   } catch (err) {
     console.error('Failed to check previous responses', err)
@@ -242,18 +263,14 @@ const loadTeachersToEvaluate = async (evaluationId) => {
 
 const startForTeacher = (teacher) => {
   const evalId = activeEvaluation.value?.id
-  router.push({
-    name: 'StudentEvaluation',
-    params: { evaluationId: evalId, teacherId: teacher.teacherId || teacher.id },
-  })
+  const tid = getTeacherKey(teacher)
+  router.push({ name: 'StudentEvaluation', params: { evaluationId: evalId, teacherId: tid } })
 }
 
 const viewSubmission = (teacher) => {
   const evalId = activeEvaluation.value?.id
-  router.push({
-    name: 'StudentEvaluationView',
-    params: { evaluationId: evalId, teacherId: teacher.teacherId || teacher.id },
-  })
+  const tid = getTeacherKey(teacher)
+  router.push({ name: 'StudentEvaluationView', params: { evaluationId: evalId, teacherId: tid } })
 }
 
 // reload teacher list when activeEvaluation becomes available
@@ -266,7 +283,7 @@ watch(activeEvaluation, (v) => {
 
 onMounted(async () => {
   try {
-    await evaluationStore.fetchEvaluations()
+    evaluationStore.subscribeEvaluations()
     // start timer if active evaluation already available
     if (activeEvaluation.value) startTimer()
   } finally {
@@ -276,6 +293,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopTimer()
+  evaluationStore.unsubscribeEvaluations()
 })
 </script>
 

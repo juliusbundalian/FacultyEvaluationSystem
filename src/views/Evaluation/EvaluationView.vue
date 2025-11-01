@@ -35,7 +35,7 @@
     :isEditing="isEditing"
     :evaluation="selectedEvaluation"
     @close="closeModal"
-    @save="refreshTable"
+    @save="closeModal"
   />
 </template>
 
@@ -128,6 +128,10 @@ export default {
         const start = e.startDate ? new Date(e.startDate) : null
         const end = e.endDate ? new Date(e.endDate) : null
 
+        // Normalize to day boundaries to avoid closing on the end date prematurely
+        if (start) start.setHours(0, 0, 0, 0)
+        if (end) end.setHours(23, 59, 59, 999)
+
         if (start && end) {
           if (current < start) return 'Upcoming'
           if (current >= start && current <= end) return 'Active'
@@ -175,7 +179,8 @@ export default {
     })
 
     onMounted(async () => {
-      await refreshTable()
+      // Subscribe to real-time updates so the table reflects changes immediately
+      evaluationStore.subscribeEvaluations()
 
       // start a timer to update "now" so computed statuses refresh in real time
       nowInterval = setInterval(() => {
@@ -187,6 +192,7 @@ export default {
     })
 
     onBeforeUnmount(() => {
+      evaluationStore.unsubscribeEvaluations()
       const tableEl = dataTableRef.value?.$el
       if (tableEl) tableEl.removeEventListener('click', handleTableClick)
       if (nowInterval) {
@@ -208,9 +214,7 @@ export default {
       selectedEvaluation.value = null
     }
 
-    const refreshTable = async () => {
-      await evaluationStore.fetchEvaluations()
-    }
+    const refreshTable = async () => {}
 
     // 🔹 Handle edit/delete actions
     const handleTableClick = (e) => {

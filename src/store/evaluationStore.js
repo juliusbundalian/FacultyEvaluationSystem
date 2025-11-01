@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { collection, getDocs, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, deleteDoc, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { COLLECTIONS } from '../constants/dbCollections'
 
@@ -9,6 +9,7 @@ export const useEvaluationStore = defineStore('evaluation', () => {
   const evaluations = ref([])
   const loading = ref(false)
   const error = ref(null)
+  let unsubscribe = null
 
   // 🔹 GETTERS
   const evaluationCount = computed(() => evaluations.value.length)
@@ -33,12 +34,45 @@ export const useEvaluationStore = defineStore('evaluation', () => {
     }
   }
 
+  const subscribeEvaluations = () => {
+    // tear down any existing subscription first
+    if (typeof unsubscribe === 'function') {
+      unsubscribe()
+      unsubscribe = null
+    }
+    loading.value = true
+    error.value = null
+    try {
+      unsubscribe = onSnapshot(
+        collection(db, COLLECTIONS.EVALUATIONS),
+        (snapshot) => {
+          evaluations.value = snapshot.docs.map((d, index) => ({ id: d.id, ...d.data(), rowNumber: index + 1 }))
+          loading.value = false
+        },
+        (err) => {
+          console.error('Realtime subscription error (Evaluations):', err)
+          error.value = err.message
+          loading.value = false
+        },
+      )
+    } catch (err) {
+      console.error('Error subscribing to Evaluations:', err)
+      error.value = err.message
+      loading.value = false
+    }
+  }
+
+  const unsubscribeEvaluations = () => {
+    if (typeof unsubscribe === 'function') {
+      unsubscribe()
+      unsubscribe = null
+    }
+  }
+
   const addEvaluation = async (evaluationData) => {
     try {
-      // Ensure we have the latest evaluations so we can compute the next sequential ID
-      await fetchEvaluations()
-
-      // Extract numeric suffixes from existing ids like 'eval-001'
+      // Generate a unique sequential ID and ensure we never overwrite an existing document.
+      // Start from the highest observed in-memory number, then probe Firestore for collisions.
       const numbers = evaluations.value
         .map((e) => {
           const m = typeof e.id === 'string' && e.id.match(/^eval-(\d+)$/)
@@ -46,16 +80,28 @@ export const useEvaluationStore = defineStore('evaluation', () => {
         })
         .filter((n) => n !== null)
 
-      const max = numbers.length ? Math.max(...numbers) : 0
-      const next = max + 1
-      const newId = `eval-${String(next).padStart(3, '0')}`
+      let next = numbers.length ? Math.max(...numbers) + 1 : 1
+      let newId = `eval-${String(next).padStart(3, '0')}`
+      let targetRef = doc(db, COLLECTIONS.EVALUATIONS, newId)
 
-      // Create the document with the new sequential ID
-      const docRef = doc(db, COLLECTIONS.EVALUATIONS, newId)
-      await setDoc(docRef, { ...evaluationData, id: newId })
+      // Probe until a free ID is found to avoid replacing existing docs
+      // This is robust even if the local cache is stale or some IDs are missing our pattern
+      // In practice this loop should run just once.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const snap = await getDoc(targetRef)
+        if (!snap.exists()) break
+        next += 1
+        newId = `eval-${String(next).padStart(3, '0')}`
+        targetRef = doc(db, COLLECTIONS.EVALUATIONS, newId)
+      }
 
-      // Append locally so UI updates immediately
-      evaluations.value.push({ ...evaluationData, id: newId })
+      await setDoc(targetRef, { ...evaluationData, id: newId })
+
+      // Optimistic local update only if not using realtime subscription
+      if (typeof unsubscribe !== 'function') {
+        evaluations.value.push({ ...evaluationData, id: newId })
+      }
     } catch (err) {
       console.error('Error adding Evaluation:', err)
       throw err
@@ -98,6 +144,8 @@ export const useEvaluationStore = defineStore('evaluation', () => {
 
     // actions
     fetchEvaluations,
+    subscribeEvaluations,
+    unsubscribeEvaluations,
     addEvaluation,
     updateEvaluation,
     deleteEvaluation,
