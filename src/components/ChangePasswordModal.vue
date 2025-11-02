@@ -72,7 +72,6 @@
 <script setup>
 import { ref, watch } from 'vue'
 import Modal from '@/components/Modal.vue'
-import Button from '@/components/Buttons.vue'
 import { auth } from '@/firebase'
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { showLoading, closeLoading } from '@/utils/swal'
@@ -168,12 +167,7 @@ async function onSubmit() {
     closeLoading()
   } finally {
     submitting.value = false
-    currentPassword.value = ''
-    newPassword.value = ''
-    confirmPassword.value = ''
-    showCurrent.value = false
-    showNew.value = false
-    showConfirm.value = false
+    resetForm()
   }
 }
 

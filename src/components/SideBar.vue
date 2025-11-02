@@ -50,7 +50,7 @@
                   }
                 : {}
             "
-            :class="{ active: $route.path === '/main/evaluation' }"
+            :class="{ active: $route.path.startsWith('/main/evaluation') }"
           >
             <span class="icon">home</span>
             <span class="label" v-if="!isCollapsed">Evaluations</span>
@@ -80,7 +80,7 @@
                   }
                 : {}
             "
-            :class="{ active: $route.path === '/main/form' }"
+            :class="{ active: $route.path.startsWith('/main/form') }"
           >
             <span class="icon">ballot</span>
             <span class="label" v-if="!isCollapsed">Evaluation Form</span>
