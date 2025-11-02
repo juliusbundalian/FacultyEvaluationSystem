@@ -149,7 +149,12 @@
             <div v-if="groupedAnswers.length === 0" class="text-muted">No answers available.</div>
 
             <div v-for="criteria in groupedAnswers" :key="criteria.id" class="mb-4">
-              <div class="criteria-title mb-3">{{ criteria.name }}</div>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="criteria-title mb-0">{{ criteria.name }}</div>
+                <div v-if="criteria.avg !== null && criteria.avg !== undefined" class="badge bg-secondary text-white">
+                  Avg: {{ criteria.avg }}
+                </div>
+              </div>
 
               <div v-for="q in criteria.questions" :key="q.id" class="mb-3">
                 <div class="question-text">{{ q.text || q.id }}</div>
@@ -453,15 +458,24 @@ watch(
         await questionStore.fetchQuestionsByCriteria(c.id)
         const qs = questionStore.questions || []
         const questions = []
+        let sum = 0
+        let count = 0
         for (const q of qs) {
-          if (answersByQuestionId.hasOwnProperty(q.id))
+          if (answersByQuestionId.hasOwnProperty(q.id)) {
+            const val = Number(answersByQuestionId[q.id])
+            if (!Number.isNaN(val)) {
+              sum += val
+              count += 1
+            }
             questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+          }
         }
         if (questions.length > 0)
           groups.push({
             id: c.criteriaId,
             name: c.criteriaName || c.criteria || 'Criteria',
             questions,
+            avg: count ? Number((sum / count).toFixed(2)) : null,
           })
       }
       groupedAnswers.value = groups
@@ -687,10 +701,17 @@ onMounted(async () => {
         await questionStore.fetchQuestionsByCriteria(c.id)
         const qs = questionStore.questions || []
         const questions = []
+        let sum = 0
+        let count = 0
         for (const q of qs) {
           questionTextById[q.id] = q.questionText
           // only include questions that have an answer in this response
           if (answersByQuestionId.hasOwnProperty(q.id)) {
+            const val = Number(answersByQuestionId[q.id])
+            if (!Number.isNaN(val)) {
+              sum += val
+              count += 1
+            }
             questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
           }
         }
@@ -700,6 +721,7 @@ onMounted(async () => {
             id: c.criteriaId,
             name: c.criteriaName || c.criteria || 'Criteria',
             questions,
+            avg: count ? Number((sum / count).toFixed(2)) : null,
           })
         }
       }
