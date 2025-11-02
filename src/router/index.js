@@ -115,6 +115,22 @@ const router = createRouter({
         },
         { path: 'faculty', component: () => import('@/views/Faculty/FacultyView.vue') },
         { path: 'students', component: () => import('@/views/Student/StudentView.vue') },
+        // Profile routes per role
+        {
+          path: 'admin/profile',
+          name: 'AdminProfile',
+          component: () => import('@/views/Profile/AdminProfile.vue'),
+        },
+        {
+          path: 'student/profile',
+          name: 'StudentProfile',
+          component: () => import('@/views/Profile/StudentProfile.vue'),
+        },
+        {
+          path: 'faculty/profile',
+          name: 'FacultyProfile',
+          component: () => import('@/views/Profile/FacultyProfile.vue'),
+        },
       ],
     },
   ],
