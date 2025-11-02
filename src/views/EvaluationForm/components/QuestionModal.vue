@@ -29,12 +29,10 @@
           </div>
 
           <div class="modal-footer">
-            <Button variant="secondary" styleType="label" @click="attemptClose" class="w-md-auto" >
+            <Button variant="secondary" styleType="label" @click="attemptClose" class="w-md-auto">
               Cancel
             </Button>
-            <Button variant="primary-main" @click="saveQuestion" class="w-md-auto">
-              Save
-            </Button>
+            <Button variant="primary-main" @click="saveQuestion" class="w-md-auto"> Save </Button>
           </div>
         </div>
       </div>
@@ -46,7 +44,13 @@
 import { computed, reactive, watch } from 'vue'
 import { useQuestionStore } from '@/store/questionsStore'
 import Button from '@/components/Buttons.vue'
-import { confirmSaveChanges, showChangesSaved, confirmUnsavedChanges, showLoading, closeLoading } from '@/utils/swal'
+import {
+  confirmSaveChanges,
+  showChangesSaved,
+  confirmUnsavedChanges,
+  showLoading,
+  closeLoading,
+} from '@/utils/swal'
 
 export default {
   name: 'QuestionModal',
@@ -66,15 +70,19 @@ export default {
 
     const isEditMode = computed(() => !!props.editQuestion)
 
-    watch(() => props.editQuestion, (newQ) => {
-      if (newQ) {
-        form.questionText = newQ.questionText
-        form.status = newQ.statuts
-      } else {
-        form.questionText = ''
-        form.status = 'active'
-      }
-    }, { immediate: true })
+    watch(
+      () => props.editQuestion,
+      (newQ) => {
+        if (newQ) {
+          form.questionText = newQ.questionText
+          form.status = newQ.statuts
+        } else {
+          form.questionText = ''
+          form.status = 'active'
+        }
+      },
+      { immediate: true },
+    )
 
     const hasUnsavedChanges = computed(() => {
       if (props.editQuestion) {
@@ -107,12 +115,9 @@ export default {
               statuts: form.status,
             })
           } else {
-            // generate new
-            const nextId = questionStore.questions.length + 1
+            // Create new question - let the store handle ID generation
             const payload = {
               criteriaId: props.criteriaId,
-              questionId: `q-${String(nextId).padStart(3, '0')}`,
-              questionOrder: nextId,
               questionText: form.questionText.trim(),
               statuts: form.status,
             }
@@ -131,7 +136,7 @@ export default {
     }
 
     return { form, isEditMode, saveQuestion, attemptClose }
-  }
+  },
 }
 </script>
 

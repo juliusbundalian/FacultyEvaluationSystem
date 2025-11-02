@@ -32,9 +32,7 @@
             <Button variant="secondary" styleType="label" @click="attemptClose" class="w-md-auto">
               Cancel
             </Button>
-            <Button variant="primary-main" @click="saveCriteria" class="w-md-auto">
-              Save
-            </Button>
+            <Button variant="primary-main" @click="saveCriteria" class="w-md-auto"> Save </Button>
           </div>
         </div>
       </div>
@@ -61,8 +59,11 @@ export default {
     visible: Boolean,
     isEditing: Boolean,
     criteria: Object,
+    sectionId: { type: String, default: null },
   },
   setup(props, { emit }) {
+    console.log('🔍 CriteriaModal setup - props.sectionId:', props.sectionId)
+
     const criteriaStore = useCriteriaStore()
     const form = ref({ id: null, criteriaName: '', status: 'Active' })
 
@@ -80,7 +81,7 @@ export default {
           resetForm()
         }
       },
-      { immediate: true }
+      { immediate: true },
     )
 
     const hasUnsavedChanges = computed(() => {
@@ -96,8 +97,7 @@ export default {
     const attemptClose = async () => {
       if (hasUnsavedChanges.value) {
         const result = await confirmUnsavedChanges()
-        if (!result.isConfirmed) 
-        return
+        if (!result.isConfirmed) return
       }
       resetForm()
       emit('close')
@@ -117,9 +117,11 @@ export default {
             status: form.value.status,
           })
         } else {
+          console.log('🔍 Adding criteria with sectionId:', props.sectionId)
           await criteriaStore.addCriteria(
             form.value.criteriaName.trim(),
-            form.value.status
+            props.sectionId,
+            form.value.status,
           )
         }
 

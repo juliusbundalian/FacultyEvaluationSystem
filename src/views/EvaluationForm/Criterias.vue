@@ -1,14 +1,48 @@
 <template>
-  <div class="d-flex justify-content-between align-items-center">
+  <!-- Hierarchical layout (Faculty-to-Faculty & Faculty-to-Administrator) -->
+  <div v-if="isInSectionContext" class="d-flex justify-content-between align-items-center">
+    <div>
+      <!-- Enhanced breadcrumbs for hierarchical mode -->
+      <nav aria-label="breadcrumb" class="m-0 p-0">
+        <ol class="breadcrumb m-0 p-0">
+          <li class="breadcrumb-item">
+            <button
+              type="button"
+              class="btn btn-link p-0 text-decoration-none body1"
+              @click="goBackToSections"
+            >
+              Sections
+            </button>
+          </li>
+          <li class="breadcrumb-item active body1" aria-current="page">
+            {{ currentSectionName }}
+          </li>
+        </ol>
+      </nav>
+
+      <div class="ch4">
+        {{ currentSectionName }}
+      </div>
+    </div>
+
+    <div class="gap-2">
+      <Button
+        variant="secondary"
+        iconLeft="arrow_back"
+        class="w-md-auto me-2"
+        @click="goBackToSections"
+      >
+        Back
+      </Button>
+    </div>
+  </div>
+
+  <!-- Simple layout (Students-to-Faculty) -->
+  <div v-else class="d-flex justify-content-between align-items-center">
     <div class="ch4">Criteria</div>
 
     <div class="gap-2">
-      <Button 
-        variant="primary-main" 
-        iconLeft="add" 
-        class="w-md-auto"
-        @click="openAddModal"
-      >
+      <Button variant="primary-main" iconLeft="add" class="w-md-auto" @click="openAddModal">
         New Criteria
       </Button>
     </div>
@@ -16,7 +50,22 @@
 
   <div class="card">
     <div class="card-body p-0">
-      <div class="table-responsive p-0 m-0 mt-2">
+      <!-- Table header with title and button - only for hierarchical modes -->
+      <div v-if="isInSectionContext" class="row align-items-center mx-4 mt-4 mb-2 gap-2 gap-md-0">
+        <div class="col-md-6 p-0">
+          <div class="ch5">Criterias</div>
+        </div>
+
+        <div
+          class="col-md-6 d-flex flex-column flex-md-row justify-content-start justify-content-md-end p-0 gap-2"
+        >
+          <Button variant="primary-main" iconLeft="add" class="w-md-auto" @click="openAddModal">
+            New Criteria
+          </Button>
+        </div>
+      </div>
+
+      <div class="table-responsive p-0 m-0" :class="{ 'mt-2': !isInSectionContext }">
         <DataTable
           ref="dataTableRef"
           :key="tableKey"
@@ -34,6 +83,7 @@
     :visible="isModalOpen"
     :criteria="selectedCriteria"
     :isEditing="isEditing"
+    :sectionId="currentSectionId"
     @close="isModalOpen = false"
     @save="refreshTable"
   />
@@ -42,7 +92,7 @@
 <script>
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'   // ✅ import router
+import { useRouter, useRoute } from 'vue-router'
 import { useCriteriaStore } from '@/store/criteriaStore'
 import { options } from '@/constants/datatableOptions.js'
 import { confirmDelete, showItemDeleted, showLoading, closeLoading } from '@/utils/swal'
@@ -61,6 +111,12 @@ export default {
     const criteriaStore = useCriteriaStore()
     const { criterias, loading, error } = storeToRefs(criteriaStore)
     const router = useRouter()
+    const route = useRoute()
+
+    // Section context from route parameters (hierarchical) or query (legacy)
+    const currentSectionId = computed(() => route.params.sectionId || route.query.sectionId || null)
+    const currentSectionName = computed(() => route.query.sectionName || '')
+    const isInSectionContext = computed(() => !!currentSectionId.value)
 
     const tableKey = ref(0)
     const dataTableRef = ref(null)
@@ -82,26 +138,30 @@ export default {
         render: (data, type, row) => {
           return `
             <div class="d-flex gap-2">
-              <button class="icon-btn icon-btn--md btn--edit edit-btn" data-id="${row.id}">
+              <button class="icon-btn icon-btn--md btn--edit edit-btn" data-id="${row.id}" title="Edit Criteria">
                 <span class="icon">edit</span>
               </button>
-              <button class="icon-btn icon-btn--md btn--delete delete-btn" data-id="${row.id}">
+              <button class="icon-btn icon-btn--md btn--delete delete-btn" data-id="${row.id}" title="Delete Criteria">
                 <span class="icon">delete</span>
               </button>
             </div>
           `
-        }
-      }
+        },
+      },
     ]
 
     const criteriasArray = computed(() => {
       if (!Array.isArray(criterias.value)) return []
-      return criterias.value.map(u => ({ ...u }))
+      return criterias.value.map((u) => ({ ...u }))
     })
 
-    watch(criteriasArray, () => {
-      tableKey.value += 1
-    }, { deep: true })
+    watch(
+      criteriasArray,
+      () => {
+        tableKey.value += 1
+      },
+      { deep: true },
+    )
 
     watch(loading, (isLoading) => {
       if (dataTableRef.value?.dt) {
@@ -116,13 +176,38 @@ export default {
     })
 
     const openAddModal = () => {
+      console.log('🔍 Opening add modal - currentSectionId:', currentSectionId.value)
       isEditing.value = false
       selectedCriteria.value = null
       isModalOpen.value = true
     }
 
     const refreshTable = async () => {
-      await criteriaStore.fetchCriterias()
+      await criteriaStore.fetchCriterias(currentSectionId.value)
+    }
+
+    const handleViewQuestions = (criteria) => {
+      if (isInSectionContext.value) {
+        // Navigate to hierarchical questions
+        router.push({
+          name: 'HierarchicalQuestions',
+          params: {
+            sectionId: currentSectionId.value,
+            criteriaId: criteria.criteriaId,
+          },
+          query: {
+            sectionName: currentSectionName.value,
+            criteriaName: criteria.criteriaName,
+          },
+        })
+      } else {
+        // Navigate to simple questions (Students-to-Faculty)
+        router.push({
+          name: 'CriteriaQuestions',
+          params: { criteriaId: criteria.criteriaId },
+          query: { criteriaName: criteria.criteriaName },
+        })
+      }
     }
 
     const attachEventDelegation = () => {
@@ -137,7 +222,7 @@ export default {
         if (editBtn) {
           e.stopPropagation()
           const id = editBtn.dataset.id
-          const rowData = criterias.value.find(c => c.id === id)
+          const rowData = criterias.value.find((c) => c.id === id)
           if (rowData) {
             isEditing.value = true
             selectedCriteria.value = { ...rowData }
@@ -169,16 +254,23 @@ export default {
         if (rowEl) {
           const rowData = dataTableRef.value?.dt?.row(rowEl).data()
           if (rowData) {
-            criteriaStore.setSelectedCriteria(rowData)
-            router.push('/main/form/questions')
+            handleViewQuestions(rowData)
           }
         }
       })
     }
 
+    const goBackToSections = () => {
+      router.push({ name: 'Sections' })
+    }
+
     onMounted(async () => {
       try {
-        await criteriaStore.fetchCriterias()
+        console.log('🔍 Criterias onMounted - currentSectionId:', currentSectionId.value)
+        console.log('🔍 Criterias onMounted - route.query:', route.query)
+
+        // Fetch criterias based on section context
+        await criteriaStore.fetchCriterias(currentSectionId.value)
         nextTick(() => {
           attachEventDelegation()
         })
@@ -186,6 +278,16 @@ export default {
         console.error('fetchCriterias failed:', e)
       }
     })
+
+    // Watch for route changes to refetch criteria
+    watch(
+      () => route.query.sectionId,
+      async (newSectionId) => {
+        if (newSectionId !== currentSectionId.value) {
+          await criteriaStore.fetchCriterias(newSectionId)
+        }
+      },
+    )
 
     return {
       criteriasArray,
@@ -198,10 +300,19 @@ export default {
       isModalOpen,
       isEditing,
       selectedCriteria,
+
+      // Section context
+      isInSectionContext,
+      currentSectionId,
+      currentSectionName,
+      goBackToSections,
+
+      // Methods
       openAddModal,
+      handleViewQuestions,
       refreshTable,
     }
-  }
+  },
 }
 </script>
 
