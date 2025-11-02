@@ -70,6 +70,15 @@ import { options } from '@/constants/datatableOptions.js'
 import Button from '@/components/Buttons.vue'
 import StudentModal from './components/StudentModal.vue'
 import EnrollmentModal from './components/EnrollmentModal.vue' // ✅ new modal
+import {
+  showFileError,
+  showCSVValidationError,
+  confirmCSVImport,
+  showLoading,
+  closeLoading,
+  showImportSuccess,
+  showImportError,
+} from '@/utils/swal'
 import DataTable from 'datatables.net-vue3'
 import DataTablesCore from 'datatables.net-bs5'
 import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css'
@@ -173,7 +182,7 @@ export default {
       if (!file) return
 
       if (!file.name.toLowerCase().endsWith('.csv')) {
-        alert('Please select a CSV file')
+        await showFileError('Please select a CSV file (.csv format only)')
         return
       }
 
@@ -182,14 +191,20 @@ export default {
         const parsedData = parseCSV(csvText)
 
         if (parsedData.length === 0) {
-          alert('No valid data found in CSV file')
+          await showCSVValidationError(
+            'No valid data found in CSV file. Please check your file format and required fields.',
+          )
           return
         }
+
+        // confirm import
+        const confirmed = await confirmCSVImport(parsedData.length, 0, 'student enrollments')
+        if (!confirmed.isConfirmed) return
 
         await importStudents(parsedData)
       } catch (error) {
         console.error('File upload error:', error)
-        alert('Error processing file: ' + error.message)
+        await showFileError('Error processing file: ' + error.message)
       } finally {
         // Reset file input
         event.target.value = ''
@@ -230,30 +245,15 @@ export default {
       return data
     }
 
-    const showLoading = () => {
-      // You can implement a loading state here
-      console.log('Loading...')
-    }
-
-    const closeLoading = () => {
-      // Close loading state
-      console.log('Loading complete')
-    }
-
-    const showChangesSaved = async () => {
-      // You can implement success notification here
-      console.log('Changes saved successfully!')
-    }
-
     const importStudents = async (studentData) => {
       if (!Array.isArray(studentData) || studentData.length === 0) {
-        alert('No valid student data to import')
+        await showCSVValidationError('No valid student data to import')
         return
       }
 
       console.log('📋 Importing students:', studentData.length, 'enrollments')
 
-      showLoading()
+      showLoading(`Creating student accounts and ${studentData.length} enrollments...`)
 
       try {
         const { getFunctions, httpsCallable } = await import('firebase/functions')
@@ -302,13 +302,26 @@ export default {
           console.warn('❌ Import failures:', data.failures.slice(0, 10))
         }
 
+        // Show import success summary
+        if (Array.isArray(data.successes) && data.successes.length > 0) {
+          const summary = {
+            newItems: data.successes.filter((s) => s.isNewStudent).length,
+            existingItems: data.successes.filter((s) => !s.isNewStudent).length,
+            emailsSent: data.successes.filter((s) => s.emailSent).length,
+            emailsFailed: data.successes.filter((s) => s.isNewStudent && !s.emailSent).length,
+            enrollments: data.successes.reduce((sum, s) => sum + s.enrollmentsCreated, 0),
+            failures: Array.isArray(data.failures) ? data.failures.length : 0,
+          }
+
+          await showImportSuccess(summary)
+        }
+
         closeLoading()
-        await showChangesSaved()
         await refreshTable()
       } catch (err) {
         closeLoading()
         console.error('Import error:', err)
-        alert('Import failed: ' + (err.message || 'Unknown error'))
+        await showImportError(err.message || 'Unknown error occurred')
       }
     }
 

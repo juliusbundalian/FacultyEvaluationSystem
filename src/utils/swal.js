@@ -96,11 +96,87 @@ export function showLoading(message = 'Saving...') {
     allowOutsideClick: false,
     didOpen: () => {
       Swal.showLoading()
-    }
+    },
   })
 }
 
 // 🔹 NEW: Close Loading
 export function closeLoading() {
   Swal.close()
+}
+
+// 9. CSV Import Validation Error
+export function showCSVValidationError(message) {
+  return Swal.fire({
+    title: 'CSV Validation Error',
+    text: message,
+    icon: 'error',
+    confirmButtonText: 'Review File',
+    confirmButtonColor: '#0000AE',
+  })
+}
+
+// 10. CSV Import Success Summary
+export function showImportSuccess(summary) {
+  return Swal.fire({
+    title: 'Import Completed',
+    text: 'Data has been successfully imported to the system.',
+    icon: 'success',
+    confirmButtonText: 'Done',
+    confirmButtonColor: '#0000AE',
+    width: '500px',
+  })
+}
+
+// 11. Confirm CSV Import
+export function confirmCSVImport(validCount, invalidCount = 0, type = 'records') {
+  const message =
+    invalidCount > 0
+      ? `Import ${validCount} valid ${type}?\n\n${invalidCount} invalid rows will be skipped.`
+      : `Import ${validCount} ${type}?`
+
+  return Swal.fire({
+    title: 'Confirm Import',
+    text: message,
+    icon: 'question',
+    showCancelButton: true,
+    reverseButtons: true,
+    confirmButtonText: 'Import',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#0000AE',
+    cancelButtonColor: '#8592a3',
+  })
+}
+
+// 12. CSV File Error
+export function showFileError(message) {
+  return Swal.fire({
+    title: 'File Error',
+    text: message,
+    icon: 'error',
+    confirmButtonText: 'Try Again',
+    confirmButtonColor: '#0000AE',
+  })
+}
+
+// 13. Authentication Required
+export function showAuthRequired() {
+  return Swal.fire({
+    title: 'Authentication Required',
+    text: 'You must be signed in to import data. Please sign in and try again.',
+    icon: 'warning',
+    confirmButtonText: 'Understood',
+    confirmButtonColor: '#0000AE',
+  })
+}
+
+// 14. Import Failed Error
+export function showImportError(errorMessage) {
+  return Swal.fire({
+    title: 'Import Failed',
+    text: `Import operation failed: ${errorMessage}`,
+    icon: 'error',
+    confirmButtonText: 'Try Again',
+    confirmButtonColor: '#0000AE',
+  })
 }

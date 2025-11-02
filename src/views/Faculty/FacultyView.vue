@@ -63,6 +63,16 @@ import { options } from '@/constants/datatableOptions.js'
 import Button from '@/components/Buttons.vue'
 import FacultyModal from './components/FacultyModal.vue'
 import { parseCSV } from '@/utils/csv'
+import {
+  showCSVValidationError,
+  confirmCSVImport,
+  showAuthRequired,
+  showLoading,
+  closeLoading,
+  showChangesSaved,
+  showImportSuccess,
+  showImportError,
+} from '@/utils/swal'
 import DataTable from 'datatables.net-vue3'
 import DataTablesCore from 'datatables.net-bs5'
 import 'datatables.net-bs5/css/dataTables.bootstrap5.min.css'
@@ -135,7 +145,9 @@ export default {
       const text = await file.text()
       const { headers, rows } = parseCSV(text)
       if (!headers.length || !rows.length) {
-        alert('CSV appears empty or invalid')
+        await showCSVValidationError(
+          'CSV file appears to be empty or invalid. Please check your file format.',
+        )
         return
       }
 
@@ -169,24 +181,30 @@ export default {
       }
 
       if (!validRows.length) {
-        let msg = 'No valid rows found.\n'
+        let msg = 'No valid rows found.'
         if (invalidRows.length) {
-          msg += invalidRows
-            .slice(0, 10)
+          msg += `\n\nErrors found:\n${invalidRows
+            .slice(0, 5)
             .map((r) => `Line ${r.line}: ${r.errors.join('; ')}`)
-            .join('\n')
+            .join('\n')}`
+          if (invalidRows.length > 5) {
+            msg += `\n... and ${invalidRows.length - 5} more errors.`
+          }
         }
-        alert(msg)
+
+        await showCSVValidationError(
+          'No valid data found in CSV file. Please check your file format and required fields.',
+        )
         return
       }
 
       // confirm import
-      if (
-        !confirm(
-          `Import ${validRows.length} faculty records?${invalidRows.length ? `\n${invalidRows.length} rows will be skipped.` : ''}`,
-        )
+      const confirmed = await confirmCSVImport(
+        validRows.length,
+        invalidRows.length,
+        'faculty records',
       )
-        return
+      if (!confirmed.isConfirmed) return
 
       // call backend Cloud Function to create Auth accounts + Firestore docs
       try {
@@ -195,7 +213,7 @@ export default {
 
         const currentUser = auth.currentUser
         if (!currentUser) {
-          alert('You must be signed in to import faculty. Please sign in and try again.')
+          await showAuthRequired()
           return
         }
 
@@ -203,7 +221,6 @@ export default {
         const idToken = await currentUser.getIdToken(true)
         console.log('User authenticated:', currentUser.email, 'Token length:', idToken.length)
 
-        const { showLoading, closeLoading, showChangesSaved } = await import('@/utils/swal')
         showLoading(`Creating ${validRows.length} faculty accounts...`)
 
         // prepare payload
@@ -249,12 +266,24 @@ export default {
           console.warn('❌ Account creation failures:', data.failures.slice(0, 10))
         }
 
+        // Show import success summary
+        if (Array.isArray(data.successes) && data.successes.length > 0) {
+          const summary = {
+            newItems: data.successes.length,
+            emailsSent: data.successes.filter((s) => s.emailSent).length,
+            emailsFailed: data.successes.filter((s) => !s.emailSent).length,
+            failures: Array.isArray(data.failures) ? data.failures.length : 0,
+          }
+
+          await showImportSuccess(summary)
+        }
+
         closeLoading()
-        await showChangesSaved()
         await refreshTable()
       } catch (err) {
+        closeLoading()
         console.error('Import failed', err)
-        alert('Import failed. See console for details.')
+        await showImportError(err.message || 'Unknown error occurred')
       }
     }
 
