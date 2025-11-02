@@ -192,7 +192,7 @@ export default {
       try {
         // Check if user is authenticated and get fresh token
         const { auth } = await import('@/firebase')
-        
+
         const currentUser = auth.currentUser
         if (!currentUser) {
           alert('You must be signed in to import faculty. Please sign in and try again.')
@@ -207,7 +207,13 @@ export default {
         showLoading(`Creating ${validRows.length} faculty accounts...`)
 
         // prepare payload
-        const payloadUsers = validRows.map((r) => ({ id: r.id, name: r.name, email: r.email, department: r.department, status: r.status }))
+        const payloadUsers = validRows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          email: r.email,
+          department: r.department,
+          status: r.status,
+        }))
 
         // call Cloud Function
         const { getFunctions, httpsCallable } = await import('firebase/functions')
@@ -219,14 +225,28 @@ export default {
         const result = await bulkCreate({ users: payloadUsers, passwordLength: 12 })
         const data = result.data || {}
 
-        // log created credentials for testing (returned by the function)
+        // Log results and credentials
         if (Array.isArray(data.successes)) {
           data.successes.forEach((s) => {
-            console.log(`Created account: email=${s.email} uid=${s.uid} password=${s.password}`)
+            if (s.emailSent) {
+              console.log(
+                `✅ Account created & email sent: userID=${s.id} email=${s.email} password=${s.tempPassword}`,
+              )
+            } else {
+              console.log(
+                `⚠️ Account created but email failed: userID=${s.id} email=${s.email} password=${s.tempPassword} error=${s.emailError}`,
+              )
+            }
           })
+
+          const emailsSent = data.successes.filter((s) => s.emailSent).length
+          const emailsFailed = data.successes.filter((s) => !s.emailSent).length
+
+          console.log(`📧 Email Summary: ${emailsSent} sent, ${emailsFailed} failed`)
+          console.log(`🔐 Login URL: https://lcc-daet-fes.web.app/`)
         }
         if (Array.isArray(data.failures) && data.failures.length) {
-          console.warn('Some creations failed:', data.failures.slice(0, 10))
+          console.warn('❌ Account creation failures:', data.failures.slice(0, 10))
         }
 
         closeLoading()
