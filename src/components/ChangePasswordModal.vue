@@ -60,7 +60,7 @@
 
     <template #footer>
       <div class="d-flex gap-2 justify-content-end w-100">
-            <Button styleType="outline" variant="secondary" @click="onCancel">Cancel</Button>
+        <Button styleType="outline" variant="secondary" @click="onCancel">Cancel</Button>
         <Button :disabled="submitting" @click="onSubmit">
           {{ submitting ? 'Updating…' : 'Update Password' }}
         </Button>
@@ -72,6 +72,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import Modal from '@/components/Modal.vue'
+import Button from '@/components/Buttons.vue'
 import { auth } from '@/firebase'
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'
 import { showLoading, closeLoading } from '@/utils/swal'
@@ -99,6 +100,21 @@ function resetErrors() {
   currentError.value = ''
   newError.value = ''
   confirmError.value = ''
+}
+
+function resetForm() {
+  currentPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  showCurrent.value = false
+  showNew.value = false
+  showConfirm.value = false
+  resetErrors()
+}
+
+function onCancel() {
+  resetForm()
+  emit('close')
 }
 
 function runLocalValidation() {
@@ -188,31 +204,12 @@ function applyErrorFromCode(e) {
   error.value = 'Failed to update password.'
 }
 
-function resetForm() {
-  // Clear inputs, toggles, and all validation messages
-  currentPassword.value = ''
-  newPassword.value = ''
-  confirmPassword.value = ''
-  showCurrent.value = false
-  showNew.value = false
-  showConfirm.value = false
-  error.value = ''
-  currentError.value = ''
-  newError.value = ''
-  confirmError.value = ''
-}
-
-function onCancel() {
-  resetForm()
-  emit('close')
-}
-
-// Safety: whenever modal is hidden (via Cancel, X, or outside click), reset the form
+// When modal closes, reset the form and validation
 watch(
   () => props.visible,
   (v) => {
     if (!v) resetForm()
-  }
+  },
 )
 </script>
 
