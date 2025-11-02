@@ -4,4 +4,6 @@ export const COLLECTIONS = {
   ENROLLMENTS: 'Enrollments',
   QUESTIONS: 'Questions',
   EVALUATIONS: 'Evaluations',
+  SETTINGS: 'Settings',
+  SECTIONS: 'Sections',
 }

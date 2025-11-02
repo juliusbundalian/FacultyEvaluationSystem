@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { collection, getDocs, query, deleteDoc, doc, updateDoc, addDoc } from 'firebase/firestore'
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  deleteDoc,
+  doc,
+  updateDoc,
+  addDoc,
+} from 'firebase/firestore'
 import { db } from '../firebase'
 import { COLLECTIONS } from '../constants/dbCollections'
 
@@ -12,18 +21,51 @@ export const useCriteriaStore = defineStore('criteria', () => {
 
   const criteriaCount = computed(() => criterias.value.length)
 
+  // Helper to get criterias for a specific section
+  const getCriteriasBySection = computed(() => (sectionId) => {
+    return criterias.value.filter((c) => c.sectionId === sectionId)
+  })
+
+  // Helper to get criterias without section (Students-to-Faculty)
+  const getLegacyCriterias = computed(() => {
+    return criterias.value.filter((c) => !c.sectionId)
+  })
+
   const setSelectedCriteria = (criteria) => {
     selectedCriteria.value = criteria
   }
 
-  const fetchCriterias = async () => {
+  const fetchCriterias = async (sectionId = null) => {
     loading.value = true
     error.value = null
     try {
-      const snapshot = await getDocs(collection(db, COLLECTIONS.CRITERIAS))
-      criterias.value = snapshot.docs.map((doc, index) => ({
+      let q
+      if (sectionId) {
+        // Filter by sectionId for hierarchical types
+        q = query(collection(db, COLLECTIONS.CRITERIAS), where('sectionId', '==', sectionId))
+      } else {
+        // Get all criterias without sectionId (legacy Students-to-Faculty)
+        // For backward compatibility, get all docs and filter client-side
+        q = collection(db, COLLECTIONS.CRITERIAS)
+      }
+
+      const snapshot = await getDocs(q)
+      let criteriasData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+      }))
+
+      // If sectionId is null, filter client-side for criterias without sectionId
+      if (!sectionId) {
+        criteriasData = criteriasData.filter((criteria) => !criteria.sectionId)
+      }
+
+      // Sort client-side by criteriaOrder
+      criteriasData.sort((a, b) => (a.criteriaOrder || 0) - (b.criteriaOrder || 0))
+
+      // Add row numbers after sorting
+      criterias.value = criteriasData.map((criteria, index) => ({
+        ...criteria,
         rowNumber: index + 1,
       }))
     } catch (err) {
@@ -35,17 +77,46 @@ export const useCriteriaStore = defineStore('criteria', () => {
   }
 
   // ADD criteria
-  const addCriteria = async (criteriaName, status = 'Active') => {
+  const addCriteria = async (criteriaName, sectionId = null, status = 'Active') => {
     try {
-      const newOrder = criterias.value.length + 1
-      const newId = `crit-${String(newOrder).padStart(3, '0')}`
+      console.log('🔍 addCriteria called with:', { criteriaName, sectionId, status })
+      console.log('🔍 Current criterias.value:', criterias.value)
+
+      // Calculate order based on criterias for this section (or global if no section)
+      const currentCriteriasForContext = criterias.value.filter((c) => {
+        if (sectionId) {
+          return c.sectionId === sectionId
+        } else {
+          return !c.sectionId || c.sectionId === null
+        }
+      })
+
+      console.log('🔍 Filtered criterias for context:', currentCriteriasForContext)
+      const newOrder = currentCriteriasForContext.length + 1
+
+      // Generate ID based on context
+      let newId
+      if (sectionId) {
+        newId = `${sectionId}-crit-${String(newOrder).padStart(3, '0')}`
+      } else {
+        // For global criterias, check all non-sectioned criterias
+        const globalCriterias = criterias.value.filter((c) => !c.sectionId || c.sectionId === null)
+        const globalOrder = globalCriterias.length + 1
+        newId = `crit-${String(globalOrder).padStart(3, '0')}`
+      }
+
+      console.log('🔍 Generated criteriaId:', newId)
 
       const newCriteria = {
         criteriaId: newId,
         criteriaName,
         criteriaOrder: newOrder,
+        sectionId, // null for Students-to-Faculty, sectionId for hierarchical types
         status,
+        createdAt: new Date(),
       }
+
+      console.log('🔍 New criteria object:', newCriteria)
 
       const docRef = await addDoc(collection(db, COLLECTIONS.CRITERIAS), newCriteria)
       criterias.value.push({ id: docRef.id, ...newCriteria })
@@ -60,7 +131,7 @@ export const useCriteriaStore = defineStore('criteria', () => {
       const criteriaRef = doc(db, COLLECTIONS.CRITERIAS, id)
       await updateDoc(criteriaRef, updates)
 
-      const index = criterias.value.findIndex(c => c.id === id)
+      const index = criterias.value.findIndex((c) => c.id === id)
       if (index !== -1) {
         criterias.value[index] = { ...criterias.value[index], ...updates }
       }
@@ -72,11 +143,18 @@ export const useCriteriaStore = defineStore('criteria', () => {
   // DELETE criteria
   const deleteCriteria = async (id) => {
     try {
-      await deleteDoc(doc(db, COLLECTIONS.CRITERIAS, id))
-      criterias.value = criterias.value.filter(c => c.id !== id)
+      const criteriaToDelete = criterias.value.find((c) => c.id === id)
+      const sectionId = criteriaToDelete?.sectionId || null
 
-      // 🔄 Reorder remaining criterias
-      criterias.value.forEach((c, idx) => {
+      await deleteDoc(doc(db, COLLECTIONS.CRITERIAS, id))
+      criterias.value = criterias.value.filter((c) => c.id !== id)
+
+      // 🔄 Reorder remaining criterias within the same context (section or global)
+      const contextCriterias = criterias.value.filter(
+        (c) => (sectionId && c.sectionId === sectionId) || (!sectionId && !c.sectionId),
+      )
+
+      contextCriterias.forEach((c, idx) => {
         c.criteriaOrder = idx + 1
         updateDoc(doc(db, COLLECTIONS.CRITERIAS, c.id), { criteriaOrder: c.criteriaOrder })
       })
@@ -90,6 +168,8 @@ export const useCriteriaStore = defineStore('criteria', () => {
     loading,
     error,
     criteriaCount,
+    getCriteriasBySection,
+    getLegacyCriterias,
     selectedCriteria,
     fetchCriterias,
     setSelectedCriteria,

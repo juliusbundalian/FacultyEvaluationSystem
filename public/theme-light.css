@@ -561,6 +561,32 @@ textarea {
 .main-bg {
   background: #ffffff;
 }
+.breadcrumb {
+  font-family: "Public Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 22px;
+  display: flex;
+  align-items: center;
+}
+.breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+  content: '/';
+  color: #22303eb2;
+}
+.breadcrumb .breadcrumb-item {
+  display: flex;
+  align-items: center;
+}
+.breadcrumb .breadcrumb-item a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+.breadcrumb .breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+.breadcrumb .breadcrumb-item.active {
+  color: #22303eb2;
+}
 .x-btn {
   display: flex;
   align-items: center;
@@ -1927,6 +1953,13 @@ textarea {
 .form-group .form-select.is-invalid {
   border-color: #ff3e1d;
   box-shadow: 0 0 0 3px rgba(255, 62, 29, 0.16);
+}
+.form-group .form-control.disabled,
+.form-group .form-select.disabled,
+.form-group .form-control[disabled],
+.form-group .form-select[disabled] {
+  opacity: 0.45;
+  background-color: transparent;
 }
 .sidebar {
   width: 256px;
