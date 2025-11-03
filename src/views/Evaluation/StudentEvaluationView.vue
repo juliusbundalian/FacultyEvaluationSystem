@@ -275,6 +275,7 @@ import {
   LinearScale,
   Tooltip,
   Legend,
+  Title,
 } from 'chart.js'
 import { useRoute, useRouter } from 'vue-router'
 import { useStudentStore } from '@/store/studentStore'
