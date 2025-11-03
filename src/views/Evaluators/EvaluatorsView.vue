@@ -30,29 +30,96 @@
       </div>
 
       <div class="dashed-divider my-3"></div>
-      <div class="mb-3 ch5">To be Evaluated</div>
+      <div class="mb-3 ch5">
+        {{ isFaculty ? 'Faculty & Administrators to Evaluate' : 'To be Evaluated' }}
+      </div>
 
       <div class="d-grid">
-        <!-- Inline list of teachers to evaluate (replacing modal) -->
-        <div v-if="teachersLoading" class="text-center py-2">Loading teachers...</div>
+        <!-- Inline list of evaluatees (teachers for students, faculty/admins for faculty) -->
+        <div v-if="teachersLoading" class="text-center py-2">
+          Loading {{ isFaculty ? 'faculty & administrators' : 'teachers' }}...
+        </div>
+
+        <!-- Faculty view: split lists -->
+        <template v-else-if="isFaculty">
+          <!-- Admins pending -->
+          <div class="mb-2">
+            <div class="ch5 mb-2">Administrators</div>
+            <div v-if="pendingAdmins.length === 0" class="text-muted small mb-2">
+              No administrators to evaluate.
+            </div>
+            <ul v-else class="list-group">
+              <li
+                v-for="evaluatee in pendingAdmins"
+                :key="evaluatee.id"
+                class="d-flex justify-content-between align-items-center teacher-list-item"
+              >
+                <div>
+                  <div class="ch5">{{ getEvaluateeName(evaluatee) }}</div>
+                  <div class="body2">
+                    {{ evaluatee.role }}
+                    {{ evaluatee.department ? `• ${evaluatee.department}` : '' }}
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-primary btn-sm" @click="startForTeacher(evaluatee)">
+                    Start
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Faculty pending -->
+          <div class="mt-3">
+            <div class="ch5 mb-2">Faculty</div>
+            <div v-if="pendingFaculty.length === 0" class="text-muted small mb-2">
+              No faculty to evaluate.
+            </div>
+            <ul v-else class="list-group">
+              <li
+                v-for="evaluatee in pendingFaculty"
+                :key="evaluatee.id"
+                class="d-flex justify-content-between align-items-center teacher-list-item"
+              >
+                <div>
+                  <div class="ch5">{{ getEvaluateeName(evaluatee) }}</div>
+                  <div class="body2">
+                    {{ evaluatee.role }}
+                    {{ evaluatee.department ? `• ${evaluatee.department}` : '' }}
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-primary btn-sm" @click="startForTeacher(evaluatee)">
+                    Start
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </template>
+
+        <!-- Student view: single list of teachers -->
         <div v-else>
           <div v-if="teachersToEvaluate.length === 0" class="text-center text-muted py-2">
             No teachers to evaluate at the moment.
           </div>
           <ul v-else class="list-group">
             <li
-              v-for="t in teachersToEvaluate"
-              :key="t.id"
+              v-for="evaluatee in teachersToEvaluate"
+              :key="evaluatee.id"
               class="d-flex justify-content-between align-items-center teacher-list-item"
             >
               <div>
                 <div class="ch5">
-                  {{ t.teacherName || t.teacher || t.name || 'Teacher' }}
+                  {{ getEvaluateeName(evaluatee) }}
                 </div>
-                <div class="body2">{{ t.subjectCode }} — {{ t.subjectName }}</div>
+                <div class="body2">{{ evaluatee.subjectCode }} — {{ evaluatee.subjectName }}</div>
               </div>
               <div>
-                <button class="btn btn-primary btn-sm" @click="startForTeacher(t)">Start</button>
+                <button class="btn btn-primary btn-sm" @click="startForTeacher(evaluatee)">
+                  Start
+                </button>
               </div>
             </li>
           </ul>
@@ -74,26 +141,93 @@
     </div>
 
     <!-- Submitted evaluations list -->
-    <div v-if="submittedTeachers.length > 0" class="mt-3 w-100">
+    <div class="mt-3 w-100">
       <div class="dashed-divider mb-3"></div>
       <div class="ch5 mb-2">Evaluated</div>
-      <ul class="list-group">
-        <li
-          v-for="t in submittedTeachers"
-          :key="t.id"
-          class="d-flex justify-content-between align-items-center teacher-list-item"
-        >
-          <div>
-            <div class="ch5">{{ t.teacherName || t.teacher || t.name || 'Teacher' }}</div>
-            <div class="body2">{{ t.subjectCode }} — {{ t.subjectName }}</div>
+
+      <!-- Faculty view: split evaluated -->
+      <template v-if="isFaculty">
+        <div class="mb-2">
+          <div class="ch6 fw-semibold mb-2">Administrators</div>
+          <div v-if="submittedAdmins.length === 0" class="text-muted small mb-2">
+            No administrator submissions yet.
           </div>
-          <div>
-            <button class="btn btn-outline-primary btn-sm review-btn" @click="viewSubmission(t)">
-              Review
-            </button>
+          <ul v-else class="list-group">
+            <li
+              v-for="evaluatee in submittedAdmins"
+              :key="evaluatee.id"
+              class="d-flex justify-content-between align-items-center teacher-list-item"
+            >
+              <div>
+                <div class="ch5">{{ getEvaluateeName(evaluatee) }}</div>
+                <div class="body2">
+                  {{ evaluatee.role }} {{ evaluatee.department ? `• ${evaluatee.department}` : '' }}
+                </div>
+              </div>
+              <div>
+                <button
+                  class="btn btn-outline-primary btn-sm review-btn"
+                  @click="viewSubmission(evaluatee)"
+                >
+                  Review
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="mt-3">
+          <div class="ch6 fw-semibold mb-2">Faculty</div>
+          <div v-if="submittedFaculty.length === 0" class="text-muted small mb-2">
+            No faculty submissions yet.
           </div>
-        </li>
-      </ul>
+          <ul v-else class="list-group">
+            <li
+              v-for="evaluatee in submittedFaculty"
+              :key="evaluatee.id"
+              class="d-flex justify-content-between align-items-center teacher-list-item"
+            >
+              <div>
+                <div class="ch5">{{ getEvaluateeName(evaluatee) }}</div>
+                <div class="body2">
+                  {{ evaluatee.role }} {{ evaluatee.department ? `• ${evaluatee.department}` : '' }}
+                </div>
+              </div>
+              <div>
+                <button
+                  class="btn btn-outline-primary btn-sm review-btn"
+                  @click="viewSubmission(evaluatee)"
+                >
+                  Review
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </template>
+
+      <!-- Student view: single evaluated list -->
+      <template v-else>
+        <ul v-if="submittedTeachers.length > 0" class="list-group">
+          <li
+            v-for="evaluatee in submittedTeachers"
+            :key="evaluatee.id"
+            class="d-flex justify-content-between align-items-center teacher-list-item"
+          >
+            <div>
+              <div class="ch5">{{ getEvaluateeName(evaluatee) }}</div>
+              <div class="body2">{{ evaluatee.subjectCode }} — {{ evaluatee.subjectName }}</div>
+            </div>
+            <div>
+              <button
+                class="btn btn-outline-primary btn-sm review-btn"
+                @click="viewSubmission(evaluatee)"
+              >
+                Review
+              </button>
+            </div>
+          </li>
+        </ul>
+      </template>
     </div>
   </div>
 </template>
@@ -104,19 +238,31 @@ import { useEvaluationStore } from '@/store/evaluationStore'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/authStore'
 import { useEnrollmentStore } from '@/store/enrollmentStore'
+import { useUserStore } from '@/store/userStore'
 import { db } from '@/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 
 const evaluationStore = useEvaluationStore()
 const authStore = useAuthStore()
 const enrollmentStore = useEnrollmentStore()
+const userStore = useUserStore()
 const loading = ref(true)
 const router = useRouter()
 
 const enrollments = ref([])
-const teachersToEvaluate = ref([])
+const teachersToEvaluate = ref([]) // legacy student flow
 const teachersLoading = ref(false)
-const submittedTeachers = ref([])
+const submittedTeachers = ref([]) // legacy student flow
+// Faculty view split lists
+const pendingAdmins = ref([])
+const pendingFaculty = ref([])
+const submittedAdmins = ref([])
+const submittedFaculty = ref([])
+
+// Computed property to check if user is faculty
+const isFaculty = computed(() => {
+  return authStore.role === 'Faculty' || authStore.role === 'Admin' || authStore.role === 'teacher'
+})
 
 const activeEvaluation = computed(() => {
   const evals = evaluationStore.evaluations || []
@@ -161,7 +307,6 @@ const updateRemaining = () => {
   // once time elapsed, watcher on activeEvaluation will stop timer
 }
 
-
 const startTimer = () => {
   stopTimer()
   updateRemaining()
@@ -192,7 +337,12 @@ const goToEvaluation = (id) => {
 const getTeacherKey = (obj) => {
   if (!obj) return null
   const key =
-    obj.teacherId || obj.teacherID || (obj.teacher && obj.teacher.id) || obj.userId || obj.id || null
+    obj.teacherId ||
+    obj.teacherID ||
+    (obj.teacher && obj.teacher.id) ||
+    obj.userId ||
+    obj.id ||
+    null
   return key != null && key !== '' ? String(key) : null
 }
 
@@ -245,21 +395,182 @@ const loadTeachersToEvaluate = async (evaluationId) => {
   }
 }
 
-const startForTeacher = (teacher) => {
-  const evalId = activeEvaluation.value?.id
-  const tid = getTeacherKey(teacher)
-  router.push({ name: 'StudentEvaluation', params: { evaluationId: evalId, teacherId: tid } })
+const loadFacultyToEvaluate = async (evaluationId) => {
+  teachersLoading.value = true
+  const facultyId = authStore.userData?.id || authStore.user?.uid
+  const facultyDepartment = authStore.userData?.department
+
+  console.log('🎓 Faculty Evaluation Debug:', {
+    facultyId,
+    facultyDepartment,
+    userRole: authStore.role,
+    userData: authStore.userData,
+  })
+
+  if (!facultyId) {
+    console.warn('❌ No faculty ID found')
+    teachersToEvaluate.value = []
+    teachersLoading.value = false
+    return
+  }
+
+  try {
+    // Fetch all users
+    const usersQuery = collection(db, 'Users')
+    const usersSnap = await getDocs(usersQuery)
+    const allUsers = usersSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+    console.log('👥 All users loaded:', allUsers.length, allUsers)
+
+    // Filter users based on faculty evaluation rules:
+    // 1. All administrators can be evaluated by any faculty
+    // 2. Faculty in the same department can evaluate each other
+    const availableEvaluatees = allUsers.filter((user) => {
+      // Don't evaluate yourself
+      if (user.id === facultyId) {
+        console.log('🚫 Excluding self:', user.id)
+        return false
+      }
+
+      // Can evaluate all administrators
+      if (user.role === 'Admin') {
+        console.log('✅ Including admin:', user)
+        return true
+      }
+
+      // Can evaluate faculty in same department
+      if (
+        (user.role === 'Faculty' || user.role === 'teacher') &&
+        user.department === facultyDepartment
+      ) {
+        console.log('✅ Including same-dept faculty/teacher:', user)
+        return true
+      }
+
+      console.log(
+        '🚫 Excluding user:',
+        user,
+        'Reason: role =',
+        user.role,
+        'dept =',
+        user.department,
+      )
+      return false
+    })
+
+    console.log('🎯 Available evaluatees after filtering:', availableEvaluatees)
+
+    // Check for existing submissions
+    const respQ = query(
+      collection(db, 'Responses'),
+      where('evaluationId', '==', evaluationId),
+      where('evaluatorId', '==', facultyId),
+    )
+    const respSnap = await getDocs(respQ)
+
+    console.log(
+      '📝 Existing responses:',
+      respSnap.docs.map((d) => d.data()),
+    )
+
+    const submittedEvaluateeIds = new Set(
+      respSnap.docs.map((d) => d.data().evaluateeId).filter((id) => id != null && id !== ''),
+    )
+
+    console.log('🔒 Already submitted evaluatee IDs:', Array.from(submittedEvaluateeIds))
+
+    // Split into pending and submitted, then by role
+    const pending = availableEvaluatees.filter((u) => !submittedEvaluateeIds.has(u.id))
+    const submitted = availableEvaluatees.filter((u) => submittedEvaluateeIds.has(u.id))
+
+    pendingAdmins.value = pending.filter((u) => u.role === 'Admin')
+    pendingFaculty.value = pending.filter((u) => u.role === 'Faculty' || u.role === 'teacher')
+    submittedAdmins.value = submitted.filter((u) => u.role === 'Admin')
+    submittedFaculty.value = submitted.filter((u) => u.role === 'Faculty' || u.role === 'teacher')
+
+    console.log('📋 Final results:', {
+      pendingAdmins: pendingAdmins.value,
+      pendingFaculty: pendingFaculty.value,
+      submittedAdmins: submittedAdmins.value,
+      submittedFaculty: submittedFaculty.value,
+    })
+  } catch (err) {
+    console.error('Failed to load faculty evaluatees:', err)
+    teachersToEvaluate.value = []
+  } finally {
+    teachersLoading.value = false
+  }
 }
 
-const viewSubmission = (teacher) => {
-  const evalId = activeEvaluation.value?.id
-  const tid = getTeacherKey(teacher)
-  router.push({ name: 'StudentEvaluationView', params: { evaluationId: evalId, teacherId: tid } })
+const loadEvaluatees = async (evaluationId) => {
+  if (isFaculty.value) {
+    await loadFacultyToEvaluate(evaluationId)
+  } else {
+    await loadTeachersToEvaluate(evaluationId)
+  }
 }
 
-// reload teacher list when activeEvaluation becomes available
+const getEvaluateeName = (evaluatee) => {
+  if (isFaculty.value) {
+    // For faculty evaluations, use the user's name fields
+    return evaluatee.firstName && evaluatee.lastName
+      ? `${evaluatee.firstName} ${evaluatee.lastName}`
+      : evaluatee.name || evaluatee.email || 'Faculty/Admin'
+  } else {
+    // For student evaluations, use the teacher name fields
+    return evaluatee.teacherName || evaluatee.teacher || evaluatee.name || 'Teacher'
+  }
+}
+
+const startEvaluation = (evaluatee) => {
+  const evalId = activeEvaluation.value?.id
+
+  if (isFaculty.value) {
+    // For faculty evaluations, use evaluateeId instead of teacherId
+    const evaluationType = evaluatee.role === 'Admin' ? 'admin' : 'faculty'
+    router.push({
+      name: 'StudentEvaluation',
+      params: {
+        evaluationId: evalId,
+        teacherId: evaluatee.id,
+        evaluationType,
+      },
+    })
+  } else {
+    // For student evaluations, use existing logic
+    const tid = getTeacherKey(evaluatee)
+    router.push({ name: 'StudentEvaluation', params: { evaluationId: evalId, teacherId: tid } })
+  }
+}
+
+const startForTeacher = (evaluatee) => {
+  startEvaluation(evaluatee)
+}
+
+const viewSubmission = (evaluatee) => {
+  const evalId = activeEvaluation.value?.id
+
+  if (isFaculty.value) {
+    // For faculty evaluations
+    const evaluationType = evaluatee.role === 'Admin' ? 'admin' : 'faculty'
+    router.push({
+      name: 'StudentEvaluationView',
+      params: {
+        evaluationId: evalId,
+        teacherId: evaluatee.id,
+        evaluationType,
+      },
+    })
+  } else {
+    // For student evaluations
+    const tid = getTeacherKey(evaluatee)
+    router.push({ name: 'StudentEvaluationView', params: { evaluationId: evalId, teacherId: tid } })
+  }
+}
+
+// reload evaluatee list when activeEvaluation becomes available
 watch(activeEvaluation, (v) => {
-  if (v && v.id) loadTeachersToEvaluate(v.id)
+  if (v && v.id) loadEvaluatees(v.id)
   // start/stop countdown
   if (v) startTimer()
   else stopTimer()

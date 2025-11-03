@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where} from 'firebase/firestore'
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+} from 'firebase/firestore'
 import { db } from '../firebase'
 import { COLLECTIONS } from '../constants/dbCollections'
 
@@ -8,28 +17,46 @@ export const useUserStore = defineStore('user', () => {
   // 🔹 STATE
   const users = ref([])
   const loading = ref(false)
-  const error = ref(null) 
+  const error = ref(null)
 
   // 🔹 GETTERS (computed values)
   const userCount = computed(() => users.value.length)
 
   // 🔹 ACTIONS
   const fetchUsers = async () => {
-  loading.value = true
-  error.value = null
-  try {
-    const q = query(collection(db, COLLECTIONS.USERS),
-            where('role', '==', 'Admin') )   
-    const snapshot = await getDocs(q)                   
-    users.value = snapshot.docs.map((doc, index) => ({
-      id: doc.id,
-      ...doc.data(),
-      rowNumber: index + 1,
-    }))
-    console.log("Users from Firestore:", users.value)
+    loading.value = true
+    error.value = null
+    try {
+      const q = query(collection(db, COLLECTIONS.USERS), where('role', '==', 'Admin'))
+      const snapshot = await getDocs(q)
+      users.value = snapshot.docs.map((doc, index) => ({
+        id: doc.id,
+        ...doc.data(),
+        rowNumber: index + 1,
+      }))
+      console.log('Users from Firestore:', users.value)
     } catch (err) {
       error.value = err.message
       console.error('Error fetching users:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchAllUsers = async () => {
+    loading.value = true
+    error.value = null
+    try {
+      const snapshot = await getDocs(collection(db, COLLECTIONS.USERS))
+      users.value = snapshot.docs.map((doc, index) => ({
+        id: doc.id,
+        ...doc.data(),
+        rowNumber: index + 1,
+      }))
+      console.log('All users from Firestore:', users.value)
+    } catch (err) {
+      error.value = err.message
+      console.error('Error fetching all users:', err)
     } finally {
       loading.value = false
     }
@@ -80,6 +107,7 @@ export const useUserStore = defineStore('user', () => {
 
     // actions
     fetchUsers,
+    fetchAllUsers,
     addUser,
     updateUser,
     deleteUser,

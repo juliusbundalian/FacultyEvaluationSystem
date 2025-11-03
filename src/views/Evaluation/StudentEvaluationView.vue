@@ -3,7 +3,7 @@
     <div class="d-flex justify-content-between align-items-start">
       <div>
         <h4 class="ch4 mb-0">Submission Review</h4>
-        <p class="body1">Viewing the submitted evaluation for this teacher.</p>
+        <p class="body1">Viewing the submitted evaluation for this evaluatee.</p>
       </div>
       <div>
         <button class="btn btn-secondary" @click="goBack">Back</button>
@@ -11,13 +11,17 @@
     </div>
 
     <div v-if="loading" class="py-4">
-      <div v-if="isAdmin && !route.query.studentId">
+      <div v-if="isAdmin && !route.query.studentId && !route.query.evaluatorId">
         <!-- Skeleton for Summary card while loading (per criteria) -->
         <div class="card mb-3">
           <div class="card-body">
             <h5 class="mb-2">Summary — Average score per criteria</h5>
             <div class="avg-skeleton">
-              <div v-for="i in 3" :key="'sk-crit-'+i" class="d-flex justify-content-between align-items-center py-2">
+              <div
+                v-for="i in 3"
+                :key="'sk-crit-' + i"
+                class="d-flex justify-content-between align-items-center py-2"
+              >
                 <div class="skeleton skeleton-text me-3"></div>
                 <div class="skeleton skeleton-badge"></div>
               </div>
@@ -25,169 +29,237 @@
           </div>
         </div>
 
-        <!-- Skeleton for Student Responses list -->
+        <!-- Skeleton for submissions list -->
         <ul class="list-group">
-          <h5 class="mb-3">Student Responses</h5>
-          <li v-for="k in 3" :key="'sk-load-li-'+k" class="list-group-item">
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="skeleton skeleton-text" style="width: 180px"></div>
-              <div class="skeleton skeleton-badge"></div>
-            </div>
+          <h5 class="mb-3">Submissions</h5>
+          <li
+            v-for="i in 3"
+            :key="'sk-sub-' + i"
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+            <div class="skeleton skeleton-text" style="width: 200px"></div>
+            <div class="skeleton skeleton-badge"></div>
           </li>
         </ul>
       </div>
-      <div v-else class="text-center">
-        <div class="spinner-border text-primary" role="status"></div>
+      <div v-else>
+        <!-- Generic content skeleton -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="skeleton skeleton-title mb-3"></div>
+            <div class="skeleton skeleton-text mb-2"></div>
+            <div class="skeleton skeleton-text mb-2"></div>
+            <div class="skeleton skeleton-text mb-2"></div>
+          </div>
+        </div>
       </div>
     </div>
 
     <div v-else>
-      <div v-if="!responseDoc">
-        <div v-if="isAdmin">
-          <div v-if="submissions.length === 0" class="text-center text-muted py-4">
-            No submissions yet for this teacher.
-          </div>
-
-          <div v-else>
-            <!-- Averages summary (per criteria) with toggle for Chart/Table -->
-            <div v-if="averagesByCriteria.length > 0" class="card mb-3 criteria-card">
-              <div class="card-body py-2 px-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <h6 class="mb-0">Summary — Average score per criteria</h6>
-                  <div class="btn-group btn-group-sm" role="group" aria-label="View toggle">
-                    <button
-                      type="button"
-                      class="btn"
-                      :class="criteriaViewMode === 'chart' ? 'btn-primary' : 'btn-outline-primary'"
-                      @click="setCriteriaView('chart')"
-                    >
-                      Chart
-                    </button>
-                    <button
-                      type="button"
-                      class="btn"
-                      :class="criteriaViewMode === 'table' ? 'btn-primary' : 'btn-outline-primary'"
-                      @click="setCriteriaView('table')"
-                    >
-                      Table
-                    </button>
-                  </div>
-                </div>
-
-                <div v-if="criteriaSummary.length === 0" class="text-muted small">No criteria data.</div>
-
-                <div v-else>
-                  <div v-if="criteriaViewMode === 'chart'" class="criteria-chart-wrap">
-                    <canvas ref="criteriaChartRef"></canvas>
-                  </div>
-
-                  <div v-else class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                      <thead>
-                        <tr class="small text-muted">
-                          <th style="width:64px">Rank</th>
-                          <th>Criteria</th>
-                          <th style="width:120px" class="text-end">Average</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="row in criteriaSummary" :key="row.id">
-                          <td class="small">{{ row.rank }}</td>
-                          <td>
-                            <div class="truncate" :title="row.name">{{ row.name }}</div>
-                          </td>
-                          <td class="text-end fw-semibold">{{ row.avg.toFixed(2) }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+      <!-- Admin list view (no participant selected) -->
+      <div v-if="isAdmin && !route.query.studentId && !route.query.evaluatorId">
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">Summary — Average score per criteria</h5>
+              <div class="btn-group btn-group-sm">
+                <button
+                  class="btn"
+                  :class="criteriaViewMode === 'chart' ? 'btn-primary' : 'btn-outline-primary'"
+                  @click="setCriteriaView('chart')"
+                >
+                  Chart
+                </button>
+                <button
+                  class="btn"
+                  :class="criteriaViewMode === 'table' ? 'btn-primary' : 'btn-outline-primary'"
+                  @click="setCriteriaView('table')"
+                >
+                  Table
+                </button>
               </div>
             </div>
 
-            <ul class="list-group">
-              <h5 class="mb-3">Student Responses</h5>
-              <li
-                v-for="s in submissions"
-                :key="s.id"
-                class="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <div class="ch5 mb-0">{{ s.studentName }}</div>
-                  <div class="small text-muted">{{ formatTimestamp(s.createdAt) }}</div>
-                </div>
-                <div>
-                  <button
-                    class="btn btn-outline-primary btn-sm"
-                    @click="viewSubmission(s.studentId)"
-                  >
-                    View
-                  </button>
-                </div>
-              </li>
-            </ul>
+            <div v-if="criteriaSummary.length === 0" class="text-muted small">
+              No criteria data.
+            </div>
+
+            <div v-else>
+              <div v-if="criteriaViewMode === 'chart'" class="criteria-chart-wrap">
+                <canvas ref="criteriaChartRef"></canvas>
+              </div>
+
+              <div v-else class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr class="small text-muted">
+                      <th style="width: 64px">Rank</th>
+                      <th>Criteria</th>
+                      <th style="width: 120px" class="text-end">Average</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in criteriaSummary" :key="row.id">
+                      <td class="small">{{ row.rank }}</td>
+                      <td>
+                        <div class="truncate" :title="row.name">{{ row.name }}</div>
+                      </td>
+                      <td class="text-end fw-semibold">{{ row.avg.toFixed(2) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div v-else class="text-center text-muted py-4">
-          You have not submitted an evaluation for this teacher yet.
+        <ul class="list-group">
+          <h5 class="mb-3">Submissions</h5>
+          <li
+            v-for="s in submissions"
+            :key="s.id"
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+            <div>
+              <div class="ch5 mb-0">{{ s.participantName }}</div>
+              <div class="small text-muted">{{ formatTimestamp(s.createdAt) }}</div>
+            </div>
+            <div>
+              <button
+                class="btn btn-outline-primary btn-sm"
+                @click="viewSubmission(s.participantId)"
+              >
+                View
+              </button>
+            </div>
+          </li>
+        </ul>
+        <div v-if="submissions.length === 0" class="text-center text-muted py-4">
+          No submissions yet.
         </div>
       </div>
 
+      <!-- Participant response view -->
       <div v-else>
-        <div class="teacher-card card mb-3">
-          <div class="card-body d-flex align-items-center gap-3">
-            <div>
-              <div class="ch5">{{ responseDoc.teacherName }}</div>
-              <div class="body2">{{ responseDoc.subjectCode }} — {{ responseDoc.subjectName }}</div>
-            </div>
-          </div>
+        <div v-if="!responseDoc" class="text-center text-muted py-4">
+          You have not submitted an evaluation for this evaluatee yet.
         </div>
-
-        <div class="card mb-3">
-          <div class="card-body">
-            <div v-if="groupedAnswers.length === 0" class="text-muted">No answers available.</div>
-
-            <div v-for="criteria in groupedAnswers" :key="criteria.id" class="mb-4">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="criteria-title mb-0">{{ criteria.name }}</div>
-                <div v-if="criteria.avg !== null && criteria.avg !== undefined" class="badge bg-secondary text-white">
-                  Avg: {{ criteria.avg }}
+        <div v-else>
+          <div class="teacher-card card mb-3">
+            <div class="card-body d-flex align-items-center gap-3">
+              <div>
+                <div class="ch5">
+                  {{ responseDoc.evaluateeName || responseDoc.teacherName || 'Evaluatee' }}
                 </div>
-              </div>
-
-              <div v-for="q in criteria.questions" :key="q.id" class="mb-3">
-                <div class="question-text">{{ q.text || q.id }}</div>
-
-                <!-- read-only slider UI -->
-                <div class="slider-wrap mt-1">
-                  <input
-                    class="slider"
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    :value="q.value"
-                    :style="sliderStyle(q.value)"
-                    disabled
-                    :ref="(el) => setSliderRef(q.id, el)"
-                  />
-
-                  <div class="scale-numbers d-flex justify-content-between mt-1">
-                    <span v-for="n in 5" :key="n" class="scale-num">{{ n }}</span>
-                  </div>
-
-                  <div class="scale-labels d-flex justify-content-between mt-1">
-                    <span class="small text-muted">Poor</span>
-                    <span class="small text-muted">Excellent</span>
-                  </div>
+                <div class="body2">
+                  <!-- Show subject info for student evaluations; role/department for faculty/admin evaluations if available -->
+                  <template v-if="!isFacultyEvaluation">
+                    {{ responseDoc.subjectCode }} — {{ responseDoc.subjectName }}
+                  </template>
+                  <template v-else>
+                    {{ responseDoc.evaluateeRole || '' }}
+                    <span v-if="responseDoc.evaluateeDepartment">
+                      — {{ responseDoc.evaluateeDepartment }}</span
+                    >
+                  </template>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Back button moved to header (top-right) -->
+          <!-- When faculty/admin (has sections), render section cards directly (no outer card) -->
+          <div v-if="isFacultyEvaluation">
+            <div v-if="groupedBySection.length === 0" class="text-muted">No answers available.</div>
+            <!-- Separate cards per section -->
+            <div
+              v-for="section in groupedBySection"
+              :key="section.id"
+              class="card section-card mb-3"
+            >
+              <div class="card-header bg-transparent py-2">
+                <div class="section-title m-0">{{ section.name }}</div>
+              </div>
+              <div class="card-body">
+                <div v-for="criteria in section.criterias" :key="criteria.id" class="mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="criteria-title mb-0">{{ criteria.name }}</div>
+                    <div
+                      v-if="criteria.avg !== null && criteria.avg !== undefined"
+                      class="badge bg-secondary text-white"
+                    >
+                      Avg: {{ criteria.avg }}
+                    </div>
+                  </div>
+                  <div v-for="q in criteria.questions" :key="q.id" class="mb-3">
+                    <div class="question-text">{{ q.text || q.id }}</div>
+                    <div class="slider-wrap mt-1">
+                      <input
+                        class="slider"
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="1"
+                        :value="q.value"
+                        :style="sliderStyle(q.value)"
+                        disabled
+                        :ref="(el) => setSliderRef(q.id, el)"
+                      />
+                      <div class="scale-numbers d-flex justify-content-between mt-1">
+                        <span v-for="n in 5" :key="n" class="scale-num">{{ n }}</span>
+                      </div>
+                      <div class="scale-labels d-flex justify-content-between mt-1">
+                        <span class="small text-muted">Poor</span>
+                        <span class="small text-muted">Excellent</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student (legacy) view stays within a single card -->
+          <div v-else class="card mb-3">
+            <div class="card-body">
+              <div v-if="groupedAnswers.length === 0" class="text-muted">No answers available.</div>
+              <div v-for="criteria in groupedAnswers" :key="criteria.id" class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div class="criteria-title mb-0">{{ criteria.name }}</div>
+                  <div
+                    v-if="criteria.avg !== null && criteria.avg !== undefined"
+                    class="badge bg-secondary text-white"
+                  >
+                    Avg: {{ criteria.avg }}
+                  </div>
+                </div>
+                <div v-for="q in criteria.questions" :key="q.id" class="mb-3">
+                  <div class="question-text">{{ q.text || q.id }}</div>
+                  <!-- read-only slider UI -->
+                  <div class="slider-wrap mt-1">
+                    <input
+                      class="slider"
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="1"
+                      :value="q.value"
+                      :style="sliderStyle(q.value)"
+                      disabled
+                      :ref="(el) => setSliderRef(q.id, el)"
+                    />
+                    <div class="scale-numbers d-flex justify-content-between mt-1">
+                      <span v-for="n in 5" :key="n" class="scale-num">{{ n }}</span>
+                    </div>
+                    <div class="scale-labels d-flex justify-content-between mt-1">
+                      <span class="small text-muted">Poor</span>
+                      <span class="small text-muted">Excellent</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -195,11 +267,20 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
-import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
+import {
+  Chart,
+  BarController,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+} from 'chart.js'
 import { useRoute, useRouter } from 'vue-router'
 import { useStudentStore } from '@/store/studentStore'
 import { useAuthStore } from '@/store/authStore'
 import { useCriteriaStore } from '@/store/criteriaStore'
+import { useSectionsStore } from '@/store/sectionsStore'
 import { useQuestionStore } from '@/store/questionsStore'
 import { db } from '@/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
@@ -209,11 +290,13 @@ const router = useRouter()
 const authStore = useAuthStore()
 const criteriaStore = useCriteriaStore()
 const questionStore = useQuestionStore()
+const sectionsStore = useSectionsStore()
 
 const loading = ref(true)
 const responseDoc = ref(null)
 const questionTextById = reactive({})
 const groupedAnswers = ref([])
+const groupedBySection = ref([]) // for faculty/admin hierarchical view
 const submissions = ref([]) // list of response docs for admin
 const averagesByCriteria = ref([])
 const studentStore = useStudentStore()
@@ -244,7 +327,9 @@ const setCriteriaView = (mode) => {
   criteriaViewMode.value = mode
   const evalId = route.params.evaluationId
   const teacherId = route.params.teacherId
-  try { localStorage.setItem(`teacherCriteriaView:${evalId}:${teacherId}`, mode) } catch (e) {}
+  try {
+    localStorage.setItem(`teacherCriteriaView:${evalId}:${teacherId}`, mode)
+  } catch (e) {}
 }
 
 const renderCriteriaChart = async () => {
@@ -325,6 +410,36 @@ const isAdmin = computed(() =>
   (authStore.userData?.role || '').toString().toLowerCase().includes('admin'),
 )
 
+// Determine faculty/admin evaluation context based on optional route param
+const evaluationTypeParam = computed(() => route.params.evaluationType)
+const isFacultyEvaluation = computed(() => {
+  const val = (evaluationTypeParam.value || '').toString().toLowerCase()
+  return val === 'faculty' || val === 'admin'
+})
+const fullEvalType = computed(() => {
+  const map = { admin: 'faculty-to-administrator', faculty: 'faculty-to-faculty' }
+  const key = (evaluationTypeParam.value || '').toString().toLowerCase()
+  return map[key] || key
+})
+
+// Treat status field as string ('Active'/'Inactive') or boolean
+const isActiveStatus = (itemOrStatus) => {
+  let statusVal
+  if (itemOrStatus && typeof itemOrStatus === 'object') {
+    const obj = itemOrStatus
+    statusVal = obj.status ?? obj.statuts ?? obj.active ?? obj.isActive
+  } else {
+    statusVal = itemOrStatus
+  }
+  if (statusVal === true) return true
+  if (statusVal === false) return false
+  try {
+    return String(statusVal ?? 'Active').toLowerCase() === 'active'
+  } catch {
+    return true
+  }
+}
+
 const formatTimestamp = (ts) => {
   if (!ts) return 'N/A'
   try {
@@ -342,22 +457,33 @@ const formatTimestamp = (ts) => {
   }
 }
 
-const viewSubmission = (studentId) => {
-  // navigate to this same view but include studentId in query so onMounted loads that response
+const viewSubmission = (participantId) => {
+  // navigate to this same view but include the appropriate query param so onMounted loads that response
+  const query = isFacultyEvaluation.value
+    ? { evaluatorId: participantId }
+    : { studentId: participantId }
   router.push({
     name: route.name || 'StudentEvaluationViewMain',
-    params: { evaluationId: route.params.evaluationId, teacherId: route.params.teacherId },
-    query: { studentId },
+    params: {
+      evaluationId: route.params.evaluationId,
+      teacherId: route.params.teacherId,
+      evaluationType: route.params.evaluationType,
+    },
+    query,
   })
 }
 
 const goBack = () => {
   const evaluationId = route.params.evaluationId
   // if we're currently viewing a specific student's submission (query present) -> go back to submissions list
-  if (route.query && route.query.studentId) {
+  if (route.query && (route.query.studentId || route.query.evaluatorId)) {
     router.push({
       name: route.name || 'StudentEvaluationViewMain',
-      params: { evaluationId: route.params.evaluationId, teacherId: route.params.teacherId },
+      params: {
+        evaluationId: route.params.evaluationId,
+        teacherId: route.params.teacherId,
+        evaluationType: route.params.evaluationType,
+      },
       query: {},
     })
     return
@@ -383,10 +509,10 @@ const goBack = () => {
 
 // react to query changes (when admin clicks a student and we land with a studentId)
 watch(
-  () => route.query.studentId,
-  async (newVal, oldVal) => {
+  () => [route.query.studentId, route.query.evaluatorId],
+  async ([newStudentId, newEvaluatorId], [oldStudentId, oldEvaluatorId]) => {
     // If switching to a specific student's view, remove the chart (canvas not rendered in that branch)
-    if (newVal) {
+    if (newStudentId || newEvaluatorId) {
       try {
         if (criteriaChart) criteriaChart.destroy()
       } catch (_) {
@@ -395,35 +521,45 @@ watch(
       criteriaChart = null
     }
     // when studentId is removed (admin clicked back), reload submissions list
-    if (!newVal) {
+    if (!newStudentId && !newEvaluatorId) {
       loading.value = true
       try {
         const evaluationId = route.params.evaluationId
         const teacherId = route.params.teacherId
-        const rQ = query(
-          collection(db, 'Responses'),
-          where('evaluationId', '==', evaluationId),
-          where('teacherId', '==', teacherId),
-        )
+        const rQ = isFacultyEvaluation.value
+          ? query(
+              collection(db, 'Responses'),
+              where('evaluationId', '==', evaluationId),
+              where('evaluateeId', '==', teacherId),
+              where('evaluationType', '==', evaluationTypeParam.value || 'faculty'),
+            )
+          : query(
+              collection(db, 'Responses'),
+              where('evaluationId', '==', evaluationId),
+              where('teacherId', '==', teacherId),
+            )
         const rSnap = await getDocs(rQ)
         const studentsById = Object.fromEntries((studentStore.students || []).map((s) => [s.id, s]))
         submissions.value = rSnap.docs.map((d) => {
           const data = d.data()
-          const student = studentsById[data.studentId]
+          const student = data.studentId ? studentsById[data.studentId] : null
           return {
             id: d.id,
             ...data,
-            studentName: student
-              ? student.fullName ||
-                student.name ||
-                student.displayName ||
-                student.email ||
-                student.id
-              : data.studentName || data.studentId,
+            participantId: isFacultyEvaluation.value ? data.evaluatorId : data.studentId,
+            participantName: isFacultyEvaluation.value
+              ? data.evaluatorName || data.evaluatorId
+              : student
+                ? student.fullName ||
+                  student.name ||
+                  student.displayName ||
+                  student.email ||
+                  student.id
+                : data.studentName || data.studentId,
           }
         })
-  // compute averages for header and keep shimmer until ready
-  await computeAverages(submissions.value)
+        // compute averages for header and keep shimmer until ready
+        await computeAverages(submissions.value)
         responseDoc.value = null
         groupedAnswers.value = []
       } catch (err) {
@@ -438,47 +574,106 @@ watch(
     try {
       const evaluationId = route.params.evaluationId
       const teacherId = route.params.teacherId
-      const rQ = query(
-        collection(db, 'Responses'),
-        where('evaluationId', '==', evaluationId),
-        where('teacherId', '==', teacherId),
-        where('studentId', '==', newVal),
-      )
+      const rQ = isFacultyEvaluation.value
+        ? query(
+            collection(db, 'Responses'),
+            where('evaluationId', '==', evaluationId),
+            where('evaluateeId', '==', teacherId),
+            where('evaluatorId', '==', newEvaluatorId),
+            where('evaluationType', '==', evaluationTypeParam.value || 'faculty'),
+          )
+        : query(
+            collection(db, 'Responses'),
+            where('evaluationId', '==', evaluationId),
+            where('teacherId', '==', teacherId),
+            where('studentId', '==', newStudentId),
+          )
       const rSnap = await getDocs(rQ)
       if (rSnap.empty) responseDoc.value = null
       else responseDoc.value = rSnap.docs[0].data()
 
       // rebuild groupedAnswers for this response
-      await criteriaStore.fetchCriterias()
-      const criterias = criteriaStore.criterias || []
       const answersByQuestionId = {}
       for (const a of responseDoc.value.answers || []) answersByQuestionId[a.questionId] = a.value
-      const groups = []
-      for (const c of criterias) {
-        await questionStore.fetchQuestionsByCriteria(c.id)
-        const qs = questionStore.questions || []
-        const questions = []
-        let sum = 0
-        let count = 0
-        for (const q of qs) {
-          if (answersByQuestionId.hasOwnProperty(q.id)) {
-            const val = Number(answersByQuestionId[q.id])
-            if (!Number.isNaN(val)) {
-              sum += val
-              count += 1
+
+      if (isFacultyEvaluation.value) {
+        // Fetch sections for this evaluation type, then criterias per section
+        await sectionsStore.fetchSections(fullEvalType.value)
+        const sections = (sectionsStore.sections || []).filter((s) => isActiveStatus(s))
+        const sectionGroups = []
+        for (const section of sections) {
+          await criteriaStore.fetchCriterias(section.sectionId)
+          const criterias = (criteriaStore.criterias || []).filter((c) => isActiveStatus(c))
+          const critGroups = []
+          for (const c of criterias) {
+            await questionStore.fetchQuestionsByCriteria(c.criteriaId || c.id)
+            const qs = (questionStore.questions || []).filter((q) => isActiveStatus(q))
+            const questions = []
+            let sum = 0
+            let count = 0
+            for (const q of qs) {
+              if (answersByQuestionId.hasOwnProperty(q.id)) {
+                const val = Number(answersByQuestionId[q.id])
+                if (!Number.isNaN(val)) {
+                  sum += val
+                  count += 1
+                }
+                questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+              }
             }
-            questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+            if (questions.length > 0) {
+              critGroups.push({
+                id: c.criteriaId,
+                name: c.criteriaName || c.criteria || 'Criteria',
+                questions,
+                avg: count ? Number((sum / count).toFixed(2)) : null,
+              })
+            }
+          }
+          if (critGroups.length > 0) {
+            sectionGroups.push({
+              id: section.sectionId,
+              name: section.sectionName,
+              criterias: critGroups,
+            })
           }
         }
-        if (questions.length > 0)
-          groups.push({
-            id: c.criteriaId,
-            name: c.criteriaName || c.criteria || 'Criteria',
-            questions,
-            avg: count ? Number((sum / count).toFixed(2)) : null,
-          })
+        groupedBySection.value = sectionGroups
+        groupedAnswers.value = []
+      } else {
+        // legacy student flow: flat criteria -> questions
+        await criteriaStore.fetchCriterias()
+        // Only consider active criterias and questions when computing averages
+        const criterias = (criteriaStore.criterias || []).filter((c) => isActiveStatus(c))
+        const groups = []
+        for (const c of criterias) {
+          await questionStore.fetchQuestionsByCriteria(c.criteriaId || c.id)
+          const qs = questionStore.questions || []
+          const questions = []
+          let sum = 0
+          let count = 0
+          for (const q of qs) {
+            if (answersByQuestionId.hasOwnProperty(q.id)) {
+              const val = Number(answersByQuestionId[q.id])
+              if (!Number.isNaN(val)) {
+                sum += val
+                count += 1
+              }
+              questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+            }
+          }
+          if (questions.length > 0) {
+            groups.push({
+              id: c.criteriaId,
+              name: c.criteriaName || c.criteria || 'Criteria',
+              questions,
+              avg: count ? Number((sum / count).toFixed(2)) : null,
+            })
+          }
+        }
+        groupedAnswers.value = groups
+        groupedBySection.value = []
       }
-      groupedAnswers.value = groups
     } catch (err) {
       console.error('Failed to load selected submission', err)
     } finally {
@@ -562,12 +757,13 @@ const computeAverages = async (subs) => {
     }
   }
 
-  await criteriaStore.fetchCriterias()
+  if (isFacultyEvaluation.value) await criteriaStore.fetchAllCriterias()
+  else await criteriaStore.fetchCriterias()
   const criterias = criteriaStore.criterias || []
   const groups = []
   for (const c of criterias) {
-    await questionStore.fetchQuestionsByCriteria(c.id)
-    const qs = questionStore.questions || []
+    await questionStore.fetchQuestionsByCriteria(c.criteriaId || c.id)
+    const qs = (questionStore.questions || []).filter((q) => isActiveStatus(q))
     let weightedSum = 0
     let totalCount = 0
     for (const q of qs) {
@@ -616,8 +812,8 @@ onMounted(async () => {
         const saved = localStorage.getItem(`teacherCriteriaView:${evaluationId}:${teacherId}`)
         if (saved === 'chart' || saved === 'table') criteriaViewMode.value = saved
       } catch (_) {}
-      // If a studentId is present in the route, load that student's response
-      if (routeStudentId) {
+      // If a participant is present in the route, load that specific response
+      if (!isFacultyEvaluation.value && routeStudentId) {
         const rQ = query(
           collection(db, 'Responses'),
           where('evaluationId', '==', evaluationId),
@@ -625,55 +821,91 @@ onMounted(async () => {
           where('studentId', '==', routeStudentId),
         )
         const rSnap = await getDocs(rQ)
-        if (rSnap.empty) {
-          responseDoc.value = null
-        } else {
-          responseDoc.value = rSnap.docs[0].data()
-        }
-      } else {
-        // fetch all responses for this teacher/evaluation and list them
+        responseDoc.value = rSnap.empty ? null : rSnap.docs[0].data()
+      } else if (isFacultyEvaluation.value && route.query.evaluatorId) {
         const rQ = query(
           collection(db, 'Responses'),
           where('evaluationId', '==', evaluationId),
-          where('teacherId', '==', teacherId),
+          where('evaluateeId', '==', teacherId),
+          where('evaluatorId', '==', route.query.evaluatorId),
+          where('evaluationType', '==', evaluationTypeParam.value || 'faculty'),
         )
+        const rSnap = await getDocs(rQ)
+        responseDoc.value = rSnap.empty ? null : rSnap.docs[0].data()
+      } else {
+        // fetch all responses for this evaluatee/evaluation and list them
+        const rQ = isFacultyEvaluation.value
+          ? query(
+              collection(db, 'Responses'),
+              where('evaluationId', '==', evaluationId),
+              where('evaluateeId', '==', teacherId),
+              where('evaluationType', '==', evaluationTypeParam.value || 'faculty'),
+            )
+          : query(
+              collection(db, 'Responses'),
+              where('evaluationId', '==', evaluationId),
+              where('teacherId', '==', teacherId),
+            )
         const rSnap = await getDocs(rQ)
         // Map studentId to name using studentStore
         const studentsById = Object.fromEntries((studentStore.students || []).map((s) => [s.id, s]))
         submissions.value = rSnap.docs.map((d) => {
           const data = d.data()
-          const student = studentsById[data.studentId]
+          const student = data.studentId ? studentsById[data.studentId] : null
           return {
             id: d.id,
             ...data,
-            studentName: student
-              ? student.fullName ||
-                student.name ||
-                student.displayName ||
-                student.email ||
-                student.id
-              : data.studentName || data.studentId,
+            participantId: isFacultyEvaluation.value ? data.evaluatorId : data.studentId,
+            participantName: isFacultyEvaluation.value
+              ? data.evaluatorName || data.evaluatorId
+              : student
+                ? student.fullName ||
+                  student.name ||
+                  student.displayName ||
+                  student.email ||
+                  student.id
+                : data.studentName || data.studentId,
           }
         })
-  // compute averages per question across all submissions and keep shimmer until ready
-  await computeAverages(submissions.value)
+        // compute averages per question across all submissions and keep shimmer until ready
+        await computeAverages(submissions.value)
         // don't set responseDoc yet; admin should pick a student to view
         responseDoc.value = null
       }
     } else {
-      // normal student flow: load the student's own submission
+      // normal student or faculty flow: load the current user's own submission
       if (!currentUserId) {
         loading.value = false
         return
       }
 
-      const rQ = query(
-        collection(db, 'Responses'),
-        where('evaluationId', '==', evaluationId),
-        where('teacherId', '==', teacherId),
-        where('studentId', '==', currentUserId),
-      )
-      const rSnap = await getDocs(rQ)
+      const rQ = isFacultyEvaluation.value
+        ? query(
+            collection(db, 'Responses'),
+            where('evaluationId', '==', evaluationId),
+            where('evaluateeId', '==', teacherId),
+            where('evaluatorId', '==', currentUserId),
+            where('evaluationType', '==', evaluationTypeParam.value || 'faculty'),
+          )
+        : query(
+            collection(db, 'Responses'),
+            where('evaluationId', '==', evaluationId),
+            where('teacherId', '==', teacherId),
+            where('studentId', '==', currentUserId),
+          )
+      let rSnap = await getDocs(rQ)
+      // Fallback: if no student-style response and no faculty param, try faculty-style lookup
+      if (rSnap.empty && !isFacultyEvaluation.value) {
+        try {
+          const altQ = query(
+            collection(db, 'Responses'),
+            where('evaluationId', '==', evaluationId),
+            where('evaluateeId', '==', teacherId),
+            where('evaluatorId', '==', currentUserId),
+          )
+          rSnap = await getDocs(altQ)
+        } catch (_) {}
+      }
       if (rSnap.empty) {
         responseDoc.value = null
         loading.value = false
@@ -685,50 +917,92 @@ onMounted(async () => {
       responseDoc.value = docData
     }
 
-    // build question text map and grouped answers by fetching criterias/questions like the form
+    // build grouped answers
     if (responseDoc.value) {
-      await criteriaStore.fetchCriterias()
-      const criterias = criteriaStore.criterias || []
-
-      // preload all questions per criteria and build mapping
       const answersByQuestionId = {}
-      for (const a of responseDoc.value.answers || []) {
-        answersByQuestionId[a.questionId] = a.value
-      }
+      for (const a of responseDoc.value.answers || []) answersByQuestionId[a.questionId] = a.value
 
-      const groups = []
-      for (const c of criterias) {
-        await questionStore.fetchQuestionsByCriteria(c.id)
-        const qs = questionStore.questions || []
-        const questions = []
-        let sum = 0
-        let count = 0
-        for (const q of qs) {
-          questionTextById[q.id] = q.questionText
-          // only include questions that have an answer in this response
-          if (answersByQuestionId.hasOwnProperty(q.id)) {
-            const val = Number(answersByQuestionId[q.id])
-            if (!Number.isNaN(val)) {
-              sum += val
-              count += 1
+      if (isFacultyEvaluation.value) {
+        // Sections -> Criterias -> Questions
+        await sectionsStore.fetchSections(fullEvalType.value)
+        const sections = sectionsStore.sections || []
+        const sectionGroups = []
+        for (const section of sections) {
+          await criteriaStore.fetchCriterias(section.sectionId)
+          const criterias = criteriaStore.criterias || []
+          const critGroups = []
+          for (const c of criterias) {
+            await questionStore.fetchQuestionsByCriteria(c.criteriaId || c.id)
+            const qs = questionStore.questions || []
+            const questions = []
+            let sum = 0
+            let count = 0
+            for (const q of qs) {
+              questionTextById[q.id] = q.questionText
+              if (answersByQuestionId.hasOwnProperty(q.id)) {
+                const val = Number(answersByQuestionId[q.id])
+                if (!Number.isNaN(val)) {
+                  sum += val
+                  count += 1
+                }
+                questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+              }
             }
-            questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+            if (questions.length > 0) {
+              critGroups.push({
+                id: c.criteriaId,
+                name: c.criteriaName || c.criteria || 'Criteria',
+                questions,
+                avg: count ? Number((sum / count).toFixed(2)) : null,
+              })
+            }
+          }
+          if (critGroups.length > 0)
+            sectionGroups.push({
+              id: section.sectionId,
+              name: section.sectionName,
+              criterias: critGroups,
+            })
+        }
+        groupedBySection.value = sectionGroups
+        groupedAnswers.value = []
+      } else {
+        // Student: Criteria -> Questions
+        await criteriaStore.fetchCriterias()
+        const criterias = (criteriaStore.criterias || []).filter((c) => isActiveStatus(c))
+        const groups = []
+        for (const c of criterias) {
+          await questionStore.fetchQuestionsByCriteria(c.criteriaId || c.id)
+          const qs = (questionStore.questions || []).filter((q) => isActiveStatus(q))
+          const questions = []
+          let sum = 0
+          let count = 0
+          for (const q of qs) {
+            questionTextById[q.id] = q.questionText
+            if (answersByQuestionId.hasOwnProperty(q.id)) {
+              const val = Number(answersByQuestionId[q.id])
+              if (!Number.isNaN(val)) {
+                sum += val
+                count += 1
+              }
+              questions.push({ id: q.id, text: q.questionText, value: answersByQuestionId[q.id] })
+            }
+          }
+          if (questions.length > 0) {
+            groups.push({
+              id: c.criteriaId,
+              name: c.criteriaName || c.criteria || 'Criteria',
+              questions,
+              avg: count ? Number((sum / count).toFixed(2)) : null,
+            })
           }
         }
-
-        if (questions.length > 0) {
-          groups.push({
-            id: c.criteriaId,
-            name: c.criteriaName || c.criteria || 'Criteria',
-            questions,
-            avg: count ? Number((sum / count).toFixed(2)) : null,
-          })
-        }
+        groupedAnswers.value = groups
+        groupedBySection.value = []
       }
-
-      groupedAnswers.value = groups
     } else {
       groupedAnswers.value = []
+      groupedBySection.value = []
     }
   } catch (err) {
     console.error('Failed to load submission', err)
@@ -743,7 +1017,9 @@ watch([criteriaSummary, () => criteriaViewMode.value], () => {
   if (!loading.value && criteriaViewMode.value === 'chart' && criteriaSummary.value.length) {
     renderCriteriaChart()
   } else {
-    try { if (criteriaChart) criteriaChart.destroy() } catch (_) {}
+    try {
+      if (criteriaChart) criteriaChart.destroy()
+    } catch (_) {}
     criteriaChart = null
   }
 })
@@ -851,7 +1127,9 @@ onUnmounted(() => {
 .criteria-card .card-body {
   padding: 0.6rem 0.75rem !important;
 }
-.criteria-card h6 { font-weight: 600; }
+.criteria-card h6 {
+  font-weight: 600;
+}
 .criteria-chart-wrap {
   position: relative;
   width: 100%;
@@ -866,8 +1144,12 @@ onUnmounted(() => {
 
 /* Shimmer loader */
 @keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
 }
 .skeleton {
   position: relative;
@@ -877,7 +1159,18 @@ onUnmounted(() => {
   border-radius: 6px;
   animation: shimmer 1.2s infinite linear;
 }
-.skeleton-title { height: 16px; width: 220px; }
-.skeleton-text { height: 12px; width: 60%; max-width: 420px; }
-.skeleton-badge { height: 22px; width: 48px; border-radius: 999px; }
+.skeleton-title {
+  height: 16px;
+  width: 220px;
+}
+.skeleton-text {
+  height: 12px;
+  width: 60%;
+  max-width: 420px;
+}
+.skeleton-badge {
+  height: 22px;
+  width: 48px;
+  border-radius: 999px;
+}
 </style>

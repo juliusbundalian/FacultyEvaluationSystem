@@ -1,11 +1,14 @@
 <template>
   <div class="sidebar" :class="{ collapsed: isCollapsed }">
-
     <nav class="pb-3 d-flex flex-column h-100">
-
-      <div class="d-flex align-items-center  py-3 px-4">
-          <img src="../assets/images/logo.png" alt="HeroApps Logo" height="42px">
-          <img src="../assets/images/logo2.png" class="sidebar-brand-text" alt="HeroApps Logo" height="32px">
+      <div class="d-flex align-items-center py-3 px-4">
+        <img src="../assets/images/logo.png" alt="HeroApps Logo" height="42px" />
+        <img
+          src="../assets/images/logo2.png"
+          class="sidebar-brand-text"
+          alt="HeroApps Logo"
+          height="32px"
+        />
       </div>
 
       <div class="sidebar-section">
@@ -65,7 +68,6 @@
       </div>
 
       <ul class="nav flex-column gap-2 pe-3">
-
         <li class="nav-item">
           <router-link
             to="/main/form"
@@ -205,8 +207,8 @@ export default {
       const refs = [
         'dashboardLink',
         'evaluationLink',
-        'departmentsLink',
-        'semestersLink',
+        'facultyLink',
+        'studentsLink',
         'usersLink',
         'collapseBtn',
       ]

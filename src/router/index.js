@@ -28,12 +28,12 @@ const router = createRouter({
           component: () => import('@/views/Evaluators/EvaluatorsView.vue'),
         },
         {
-          path: 'evaluation/:evaluationId/teacher/:teacherId',
+          path: 'evaluation/:evaluationId/teacher/:teacherId/:evaluationType?',
           name: 'StudentEvaluation',
           component: () => import('@/views/Evaluation/StudentEvaluation.vue'),
         },
         {
-          path: 'evaluation/:evaluationId/teacher/:teacherId/view',
+          path: 'evaluation/:evaluationId/teacher/:teacherId/:evaluationType?/view',
           name: 'StudentEvaluationView',
           component: () => import('@/views/Evaluation/StudentEvaluationView.vue'),
         },
@@ -54,7 +54,7 @@ const router = createRouter({
           component: () => import('@/views/Evaluation/EvaluationSummary.vue'),
         },
         {
-          path: 'evaluation/:evaluationId/teacher/:teacherId/view',
+          path: 'evaluation/:evaluationId/teacher/:teacherId/:evaluationType?/view',
           name: 'StudentEvaluationViewMain',
           component: () => import('@/views/Evaluation/StudentEvaluationView.vue'),
         },

@@ -163,6 +163,36 @@ export const useCriteriaStore = defineStore('criteria', () => {
     }
   }
 
+  // Fetch ALL criterias including those with sectionIds (for faculty evaluations)
+  const fetchAllCriterias = async () => {
+    loading.value = true
+    error.value = null
+    try {
+      const q = collection(db, COLLECTIONS.CRITERIAS)
+      const snapshot = await getDocs(q)
+      let criteriasData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+
+      // Sort client-side by criteriaOrder
+      criteriasData.sort((a, b) => (a.criteriaOrder || 0) - (b.criteriaOrder || 0))
+
+      // Add row numbers after sorting
+      criterias.value = criteriasData.map((criteria, index) => ({
+        ...criteria,
+        rowNumber: index + 1,
+      }))
+
+      console.log('📋 Fetched all criterias:', criterias.value)
+    } catch (err) {
+      error.value = err.message
+      console.error('Error fetching all criterias:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     criterias,
     loading,
@@ -172,6 +202,7 @@ export const useCriteriaStore = defineStore('criteria', () => {
     getLegacyCriterias,
     selectedCriteria,
     fetchCriterias,
+    fetchAllCriterias,
     setSelectedCriteria,
     addCriteria,
     updateCriteria,

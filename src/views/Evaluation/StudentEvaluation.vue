@@ -1,11 +1,15 @@
 <template>
   <div class="p-md-4">
-    <div class="">
+    <div class="d-flex flex-column gap-1 mb-3">
       <h4 class="ch4 mb-0">Evaluation Form</h4>
-      <p class="body1">
-        Directions: Please evaluate carefully and objectively the performance of your teacher on the
-        description per letter by writing the corresponding number on your answer sheet.
-      </p>
+      <div class="body1">
+        Directions: Please carefully and objectively evaluate the performance of the evaluatee for
+        each description by selecting the corresponding number on the evaluation form.
+      </div>
+      <div class="body1">
+        Ratings: <strong>5</strong> – Excellent <strong>4</strong> – Very Good <strong>3</strong> –
+        Good <strong>2</strong> – Fair <strong>1</strong> – Poor
+      </div>
     </div>
 
     <!-- Teacher details card -->
@@ -28,68 +32,178 @@
     </div>
 
     <div v-else>
-      <div v-if="criterias.length === 0" class="text-center py-4 text-muted">
-        No active criteria found for this evaluation.
-      </div>
+      <!-- Faculty Evaluation (Hierarchical: Sections -> Criterias -> Questions) -->
+      <div v-if="isFacultyEvaluation">
+        <div v-if="sections.length === 0" class="text-center py-4 text-muted">
+          No active sections found for this evaluation type.
+        </div>
 
-      <form @submit.prevent="confirmAndSubmit">
-        <div v-for="(c, idx) in criterias" :key="c.id" class="criteria-section border-1 card mb-4">
-          <div class="card-body">
-            <h5 class="criteria-title">{{ c.criteriaName }}</h5>
+        <form v-else @submit.prevent="confirmAndSubmit">
+          <div v-for="section in sections" :key="section.id" class="section-container mb-3">
+            <div class="section-header">
+              <h4 class="criteria-title">{{ section.sectionName }}</h4>
+              <hr />
+            </div>
 
-            <div v-if="questionsByCriteria[c.id] && questionsByCriteria[c.id].length">
-              <div v-for="q in questionsByCriteria[c.id]" :key="q.id" class="question-item my-3">
-                <div class="question-text">{{ q.questionText }}</div>
+            <div
+              v-if="
+                sectionCriterias[section.sectionId] &&
+                sectionCriterias[section.sectionId].length > 0
+              "
+            >
+              <div
+                v-for="criteria in sectionCriterias[section.sectionId]"
+                :key="criteria.id"
+                class="criteria-section border-1 card mb-3"
+              >
+                <div class="card-body">
+                  <h5 class="criteria-title">{{ criteria.criteriaName }}</h5>
 
-                <!-- 5-point slider -->
-                <div class="slider-wrap mt-1">
-                  <input
-                    class="slider"
-                    :class="{ unanswered: answers[q.id] === null }"
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    :value="answers[q.id] ?? 3"
-                    @input="onSliderInput(q.id, $event)"
-                    :style="sliderStyle(answers[q.id])"
-                    :ref="(el) => setSliderRef(q.id, el)"
-                  />
-
-                  <div class="scale-numbers d-flex justify-content-between mt-2">
-                    <span
-                      v-for="n in 5"
-                      :key="n"
-                      class="scale-num clickable"
-                      @click.prevent="setAnswer(q.id, n)"
-                      >{{ n }}</span
+                  <div
+                    v-if="
+                      questionsByCriteria[criteria.criteriaId] &&
+                      questionsByCriteria[criteria.criteriaId].length
+                    "
+                  >
+                    <div
+                      v-for="q in questionsByCriteria[criteria.criteriaId]"
+                      :key="q.id"
+                      class="question-item my-3"
                     >
+                      <div class="question-text">{{ q.questionText }}</div>
+
+                      <!-- 5-point slider -->
+                      <div class="slider-wrap mt-1">
+                        <input
+                          class="slider"
+                          :class="{ unanswered: answers[q.id] == null }"
+                          type="range"
+                          min="1"
+                          max="5"
+                          step="1"
+                          :value="answers[q.id] ?? 3"
+                          @input="onSliderInput(q.id, $event)"
+                          :style="sliderStyle(answers[q.id])"
+                          :ref="(el) => setSliderRef(q.id, el)"
+                        />
+
+                        <div class="scale-numbers d-flex justify-content-between mt-2">
+                          <span
+                            v-for="n in 5"
+                            :key="n"
+                            class="scale-num clickable"
+                            @click.prevent="setAnswer(q.id, n)"
+                            >{{ n }}</span
+                          >
+                        </div>
+
+                        <div class="scale-labels d-flex justify-content-between mt-2">
+                          <span class="small text-muted">Poor</span>
+                          <span class="small text-muted">Excellent</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div class="scale-labels d-flex justify-content-between mt-2">
-                    <span class="small text-muted">Poor</span>
-                    <span class="small text-muted">Excellent</span>
-                  </div>
+                  <div v-else class="text-muted small">No active questions for this criteria.</div>
                 </div>
               </div>
             </div>
 
-            <div v-else class="text-muted small">No active questions for this criteria.</div>
+            <div v-else class="text-muted text-center py-3">
+              No criterias found for this section.
+            </div>
           </div>
+
+          <div class="d-flex justify-content-end gap-2 mb-4">
+            <button type="button" class="btn btn-secondary" @click="goBack">Cancel</button>
+            <button :disabled="submitting || !formValid" type="submit" class="btn btn-primary">
+              <span
+                v-if="submitting"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+              ></span>
+              Submit Evaluation
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Student Evaluation (Flat: Criterias -> Questions) -->
+      <div v-else>
+        <div v-if="criterias.length === 0" class="text-center py-4 text-muted">
+          No active criteria found for this evaluation.
         </div>
 
-        <div class="d-flex justify-content-end gap-2 mb-4">
-          <button type="button" class="btn btn-secondary" @click="goBack">Cancel</button>
-          <button :disabled="submitting || !formValid" type="submit" class="btn btn-primary">
-            <span
-              v-if="submitting"
-              class="spinner-border spinner-border-sm me-2"
-              role="status"
-            ></span>
-            Submit Evaluation
-          </button>
-        </div>
-      </form>
+        <form v-else @submit.prevent="confirmAndSubmit">
+          <div
+            v-for="(c, idx) in criterias"
+            :key="c.id"
+            class="criteria-section border-1 card mb-4"
+          >
+            <div class="card-body">
+              <h5 class="criteria-title">{{ c.criteriaName }}</h5>
+
+              <div
+                v-if="questionsByCriteria[c.criteriaId] && questionsByCriteria[c.criteriaId].length"
+              >
+                <div
+                  v-for="q in questionsByCriteria[c.criteriaId]"
+                  :key="q.id"
+                  class="question-item my-3"
+                >
+                  <div class="question-text">{{ q.questionText }}</div>
+
+                  <!-- 5-point slider -->
+                  <div class="slider-wrap mt-1">
+                    <input
+                      class="slider"
+                      :class="{ unanswered: answers[q.id] == null }"
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="1"
+                      :value="answers[q.id] ?? 3"
+                      @input="onSliderInput(q.id, $event)"
+                      :style="sliderStyle(answers[q.id])"
+                      :ref="(el) => setSliderRef(q.id, el)"
+                    />
+
+                    <div class="scale-numbers d-flex justify-content-between mt-2">
+                      <span
+                        v-for="n in 5"
+                        :key="n"
+                        class="scale-num clickable"
+                        @click.prevent="setAnswer(q.id, n)"
+                        >{{ n }}</span
+                      >
+                    </div>
+
+                    <div class="scale-labels d-flex justify-content-between mt-2">
+                      <span class="small text-muted">Poor</span>
+                      <span class="small text-muted">Excellent</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="text-muted small">No active questions for this criteria.</div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mb-4">
+            <button type="button" class="btn btn-secondary" @click="goBack">Cancel</button>
+            <button :disabled="submitting || !formValid" type="submit" class="btn btn-primary">
+              <span
+                v-if="submitting"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+              ></span>
+              Submit Evaluation
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -102,8 +216,11 @@ import { useQuestionStore } from '@/store/questionsStore'
 import { useFacultyStore } from '@/store/facultyStore'
 import { useEnrollmentStore } from '@/store/enrollmentStore'
 import { useAuthStore } from '@/store/authStore'
+import { useUserStore } from '@/store/userStore'
+import { useSectionsStore } from '@/store/sectionsStore'
 import { db } from '@/firebase'
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
+import { COLLECTIONS } from '@/constants/dbCollections'
 import { showLoading, closeLoading, showChangesSaved } from '@/utils/swal'
 import Swal from 'sweetalert2'
 
@@ -111,9 +228,12 @@ const route = useRoute()
 const router = useRouter()
 const criteriaStore = useCriteriaStore()
 const questionStore = useQuestionStore()
+const sectionsStore = useSectionsStore()
 
 const loading = ref(true)
 const criterias = ref([])
+const sections = ref([])
+const sectionCriterias = reactive({})
 const questionsByCriteria = reactive({})
 const answers = reactive({})
 const teacher = ref(null)
@@ -121,36 +241,151 @@ const sliderRefs = ref({})
 
 const facultyStore = useFacultyStore()
 const enrollmentStore = useEnrollmentStore()
+const userStore = useUserStore()
 const authStore = useAuthStore()
 const enrollment = ref(null)
 
+// Normalize status even if field is misspelled as `statuts` or provided as boolean
+const isActiveStatus = (itemOrStatus) => {
+  let statusVal
+  if (itemOrStatus && typeof itemOrStatus === 'object') {
+    const obj = itemOrStatus
+    statusVal = obj.status ?? obj.statuts ?? obj.active ?? obj.isActive
+  } else {
+    statusVal = itemOrStatus
+  }
+  if (statusVal === true) return true
+  if (statusVal === false) return false
+  try {
+    return String(statusVal ?? 'Active').toLowerCase() === 'active'
+  } catch {
+    return true
+  }
+}
+
+// Robust question fetch that supports legacy schemas
+const fetchActiveQuestionsForCriteria = async (criteria) => {
+  const critId = criteria.criteriaId || criteria.id
+  const critName = criteria.criteriaName || criteria.criteria
+
+  // Primary: by criteriaId via store
+  await questionStore.fetchQuestionsByCriteria(critId)
+  let results = (questionStore.questions || []).filter((q) => isActiveStatus(q))
+
+  // Fallback: scan all questions and filter by possible legacy fields
+  try {
+    const snap = await getDocs(collection(db, COLLECTIONS.QUESTIONS))
+    const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    const legacyMatched = all.filter((q) => {
+      const qCritId = q.criteriaId || q.criteriaID || q.criteriaRef || q.criteria
+      const qCritName = q.criteriaName || q.criteria
+      return qCritId === critId || qCritId === criteria.id || qCritName === critName
+    })
+    const activeLegacy = legacyMatched.filter((q) => isActiveStatus(q))
+    // Merge & dedupe by Firestore doc id
+    const byId = new Map()
+    ;[...results, ...activeLegacy].forEach((q) => byId.set(q.id, q))
+    results = Array.from(byId.values())
+  } catch (e) {
+    // ignore fallback errors
+  }
+
+  // Sort by questionOrder if available
+  results.sort((a, b) => (a.questionOrder || 0) - (b.questionOrder || 0))
+  return results
+}
+
+// Computed property to check if this is a faculty evaluation
+const isFacultyEvaluation = computed(() => {
+  return authStore.role === 'Faculty' || authStore.role === 'Admin' || authStore.role === 'teacher'
+})
+
 // show only active criterias and active questions
 const loadData = async () => {
-  loading.value = true
   try {
-    await criteriaStore.fetchCriterias()
-    // filter active criterias and sort by order if available
-    const all = criteriaStore.criterias || []
-    criterias.value = all
-      .filter((c) => (c.status || c.statuts || '').toLowerCase() === 'active')
-      .sort((a, b) => (a.criteriaOrder || 0) - (b.criteriaOrder || 0))
+    loading.value = true
 
-    // for each criteria fetch its questions and save only active questions
-    for (const c of criterias.value) {
-      await questionStore.fetchQuestionsByCriteria(c.id)
-      const qs = (questionStore.questions || []).filter(
-        (q) => (q.statuts || q.status || '').toLowerCase() === 'active',
-      )
-      questionsByCriteria[c.id] = qs.sort((a, b) => (a.questionOrder || 0) - (b.questionOrder || 0))
+    if (isFacultyEvaluation.value) {
+      console.log('🎯 Loading faculty evaluation data')
+      const evaluationType = route.params.evaluationType
+      console.log('📋 Evaluation type from route:', evaluationType)
 
-      // initialize answers keys
-      for (const q of questionsByCriteria[c.id]) {
-        // start blank (require student interaction)
-        answers[q.id] = null
+      // Map short evaluation types to full ones used in database
+      const evaluationTypeMap = {
+        admin: 'faculty-to-administrator',
+        faculty: 'faculty-to-faculty',
+      }
+
+      const fullEvaluationType = evaluationTypeMap[evaluationType] || evaluationType
+      console.log('📋 Mapped evaluation type:', fullEvaluationType)
+      console.log('📋 Available sections in database should be for:', fullEvaluationType)
+
+      // For faculty evaluations, load sections first, then criterias for each section
+      await sectionsStore.fetchSections(fullEvaluationType)
+      // Only include active sections (supports `status` or `statuts`)
+      sections.value = (sectionsStore.sections || []).filter((s) => isActiveStatus(s))
+      console.log('📚 Loaded sections:', sections.value)
+      console.log('📚 Number of sections found:', sections.value.length)
+
+      if (sections.value.length > 0) {
+        // Debug: log the evaluation type of each section
+        sections.value.forEach((section) => {
+          console.log(
+            `📋 Section "${section.sectionName}" has evaluationType: "${section.evaluationType}"`,
+          )
+        })
+
+        // Load criterias for each section
+        for (const section of sections.value) {
+          await criteriaStore.fetchCriterias(section.sectionId)
+          const activeCriterias = (criteriaStore.criterias || []).filter((c) => isActiveStatus(c))
+          sectionCriterias[section.sectionId] = [...activeCriterias]
+
+          for (const criteria of activeCriterias) {
+            const qs = await fetchActiveQuestionsForCriteria(criteria)
+            questionsByCriteria[criteria.criteriaId] = [...qs]
+          }
+        }
+      }
+
+      // Load evaluatee info (faculty being evaluated)
+      const evaluateeId = route.params.teacherId // Note: still using teacherId param for compatibility
+      await userStore.fetchAllUsers()
+      const users = userStore.users || []
+      teacher.value = users.find((user) => user.id === evaluateeId)
+      console.log('👤 Found evaluatee:', teacher.value)
+    } else {
+      console.log('🎓 Loading student evaluation data')
+      // Original student evaluation logic
+      await criteriaStore.fetchCriterias()
+      criterias.value = (criteriaStore.criterias || []).filter((c) => isActiveStatus(c))
+
+      if (criterias.value.length > 0) {
+        for (const criteria of criterias.value) {
+          const qs = await fetchActiveQuestionsForCriteria(criteria)
+          questionsByCriteria[criteria.criteriaId] = [...qs]
+        }
+      }
+
+      // Load teacher and enrollment info
+      const teacherId = route.params.teacherId
+      const enrollmentId = route.params.enrollmentId
+
+      if (teacherId) {
+        await facultyStore.fetchFaculty()
+        teacher.value = facultyStore.faculties.find((faculty) => faculty.id === teacherId)
+      }
+
+      if (enrollmentId) {
+        await enrollmentStore.fetchEnrollments()
+        enrollment.value = enrollmentStore.enrollments.find((enroll) => enroll.id === enrollmentId)
       }
     }
-  } catch (err) {
-    console.error('Failed to load evaluation data', err)
+
+    console.log('✅ Data loading completed')
+  } catch (error) {
+    console.error('❌ Error loading data:', error)
+    Swal.fire('Error', 'Failed to load evaluation data', 'error')
   } finally {
     loading.value = false
   }
@@ -298,14 +533,38 @@ const setAnswer = async (qid, n) => {
 }
 
 const formValid = computed(() => {
-  const vals = Object.values(answers)
-  if (vals.length === 0) return false
-  return vals.every((v) => v !== null && v !== undefined)
+  // Must have all questions present and each one answered (not null/undefined)
+  const allQuestions = getAllQuestions()
+  if (!allQuestions || allQuestions.length === 0) return false
+  return allQuestions.every((q) => answers[q.id] !== null && answers[q.id] !== undefined)
 })
 
 const sliderStyle = (val) => {
   const pct = val === null || val === undefined ? 0 : ((val - 1) / (5 - 1)) * 100
   return { background: `linear-gradient(90deg, #0000AE ${pct}%, #e6e6ee ${pct}%)` }
+}
+
+const getAllQuestions = () => {
+  const allQuestions = []
+
+  if (isFacultyEvaluation.value) {
+    // For faculty evaluations, get questions from all sections
+    for (const section of sections.value) {
+      const sectionCriteriaList = sectionCriterias[section.sectionId] || []
+      for (const criteria of sectionCriteriaList) {
+        const questions = questionsByCriteria[criteria.criteriaId] || []
+        allQuestions.push(...questions)
+      }
+    }
+  } else {
+    // For student evaluations, get questions from all criterias
+    for (const criteria of criterias.value) {
+      const questions = questionsByCriteria[criteria.criteriaId] || []
+      allQuestions.push(...questions)
+    }
+  }
+
+  return allQuestions
 }
 
 const confirmAndSubmit = async () => {
@@ -324,53 +583,130 @@ const confirmAndSubmit = async () => {
 
 const submitResponses = async () => {
   // build payload
-  const studentId = authStore.userData?.id || authStore.user?.uid || null
   const evaluationId = route.params.evaluationId || null
-  const teacherId = route.params.teacherId || teacher.value?.id || null
 
-  // Validation: ensure every question has a value (non-null)
-  const unanswered = Object.keys(answers).filter(
-    (qid) => answers[qid] === null || answers[qid] === undefined,
-  )
-  if (unanswered.length > 0) {
-    // focus can be added per question; for now show a warning
-    await closeLoading()
-    alert('Please answer all questions before submitting.')
-    return
-  }
+  let payload
 
-  const answersArray = Object.keys(answers).map((qid) => ({ questionId: qid, value: answers[qid] }))
+  if (isFacultyEvaluation.value) {
+    // Faculty evaluation payload structure
+    const evaluatorId = authStore.userData?.id || authStore.user?.uid || null
+    const evaluateeId = route.params.teacherId || teacher.value?.id || null // Using teacherId param for compatibility
+    const evaluationType = route.params.evaluationType
 
-  // Prevent duplicate submissions: check Responses for an existing doc
-  try {
-    const q = query(
-      collection(db, 'Responses'),
-      where('evaluationId', '==', evaluationId),
-      where('teacherId', '==', teacherId),
-      where('studentId', '==', studentId),
+    // Validation: ensure every question has a value (non-null)
+    const allQuestions = getAllQuestions()
+    const unanswered = allQuestions.filter(
+      (question) =>
+        !answers[question.id] ||
+        answers[question.id] === null ||
+        answers[question.id] === undefined,
     )
-    const snap = await getDocs(q)
-    if (!snap.empty) {
-      // already submitted
-      await showChangesSaved() // reuse success modal but you can change to a different message
-      router.push('/evaluations')
+    if (unanswered.length > 0) {
+      alert('Please answer all questions before submitting.')
       return
     }
-  } catch (err) {
-    console.error('Duplicate check failed', err)
-    // proceed — it's safer to attempt to write than block on query failure
-  }
 
-  const payload = {
-    evaluationId,
-    teacherId,
-    studentId,
-    teacherName: teacher.value?.name || teacher.value?.displayName || null,
-    subjectCode: enrollment.value?.subjectCode || null,
-    subjectName: enrollment.value?.subjectName || null,
-    semester: enrollment.value?.semester || null,
-    answers: answersArray,
-    createdAt: serverTimestamp(),
+    const answersArray = Object.keys(answers).map((qid) => ({
+      questionId: qid,
+      value: answers[qid],
+    }))
+
+    // Check for duplicate faculty evaluation submissions
+    try {
+      const q = query(
+        collection(db, 'Responses'),
+        where('evaluationId', '==', evaluationId),
+        where('evaluateeId', '==', evaluateeId),
+        where('evaluatorId', '==', evaluatorId),
+        where('evaluationType', '==', evaluationType),
+      )
+      const snap = await getDocs(q)
+      if (!snap.empty) {
+        // Show info message instead of success message
+        Swal.fire({
+          title: 'Already Submitted',
+          text: 'You have already submitted this evaluation.',
+          icon: 'info',
+          confirmButtonText: 'OK',
+        })
+        router.push('/evaluations')
+        return
+      }
+    } catch (err) {
+      console.error('Duplicate check failed', err)
+    }
+
+    payload = {
+      evaluationId,
+      evaluatorId,
+      evaluateeId,
+      evaluationType,
+      evaluatorName: authStore.userData?.name || authStore.userData?.displayName || null,
+      evaluateeName: teacher.value?.name || teacher.value?.displayName || null,
+      evaluateeDepartment: teacher.value?.department || null,
+      answers: answersArray,
+      createdAt: serverTimestamp(),
+      evaluationContext: 'faculty', // To distinguish from student evaluations
+    }
+  } else {
+    // Original student evaluation payload structure
+    const studentId = authStore.userData?.id || authStore.user?.uid || null
+    const teacherId = route.params.teacherId || teacher.value?.id || null
+
+    // Validation: ensure every question has a value (non-null)
+    const allQuestions = getAllQuestions()
+    const unanswered = allQuestions.filter(
+      (question) =>
+        !answers[question.id] ||
+        answers[question.id] === null ||
+        answers[question.id] === undefined,
+    )
+    if (unanswered.length > 0) {
+      alert('Please answer all questions before submitting.')
+      return
+    }
+
+    const answersArray = Object.keys(answers).map((qid) => ({
+      questionId: qid,
+      value: answers[qid],
+    }))
+
+    // Check for duplicate student evaluation submissions
+    try {
+      const q = query(
+        collection(db, 'Responses'),
+        where('evaluationId', '==', evaluationId),
+        where('teacherId', '==', teacherId),
+        where('studentId', '==', studentId),
+      )
+      const snap = await getDocs(q)
+      if (!snap.empty) {
+        // Show info message instead of success message
+        Swal.fire({
+          title: 'Already Submitted',
+          text: 'You have already submitted this evaluation.',
+          icon: 'info',
+          confirmButtonText: 'OK',
+        })
+        router.push('/evaluations')
+        return
+      }
+    } catch (err) {
+      console.error('Duplicate check failed', err)
+    }
+
+    payload = {
+      evaluationId,
+      teacherId,
+      studentId,
+      teacherName: teacher.value?.name || teacher.value?.displayName || null,
+      subjectCode: enrollment.value?.subjectCode || null,
+      subjectName: enrollment.value?.subjectName || null,
+      semester: enrollment.value?.semester || null,
+      answers: answersArray,
+      createdAt: serverTimestamp(),
+      evaluationContext: 'student', // To distinguish from faculty evaluations
+    }
   }
 
   showLoading('Submitting evaluation...')
@@ -383,7 +719,7 @@ const submitResponses = async () => {
   } catch (err) {
     closeLoading()
     console.error('Failed to save responses', err)
-    // fallback: still navigate back or show notification (could add Swal error)
+    Swal.fire('Error', 'Failed to submit evaluation. Please try again.', 'error')
   } finally {
     submitting.value = false
   }
