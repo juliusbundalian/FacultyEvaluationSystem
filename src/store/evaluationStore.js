@@ -87,7 +87,7 @@ export const useEvaluationStore = defineStore('evaluation', () => {
       // Probe until a free ID is found to avoid replacing existing docs
       // This is robust even if the local cache is stale or some IDs are missing our pattern
       // In practice this loop should run just once.
-      // eslint-disable-next-line no-constant-condition
+       
       while (true) {
         const snap = await getDoc(targetRef)
         if (!snap.exists()) break

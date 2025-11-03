@@ -61,35 +61,169 @@
       </div>
     </div>
 
+    <!-- Expected participation: Evaluators vs Evaluatees -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Expected Participation</h5>
+          <div class="btn-group btn-group-sm">
+            <button
+              class="btn"
+              :class="expectedMode === 'evaluators' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="expectedMode = 'evaluators'"
+            >
+              Evaluators
+            </button>
+            <button
+              class="btn"
+              :class="expectedMode === 'evaluatees' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="expectedMode = 'evaluatees'"
+            >
+              To be evaluated
+            </button>
+          </div>
+        </div>
+
+        <div
+          v-if="expectedMode === 'evaluators'"
+          class="criteria-chart-wrap position-relative"
+          style="min-height: 220px"
+        >
+          <div v-if="expectedLoading" class="chart-loading-overlay">
+            <div class="spinner-border text-primary" role="status" aria-label="Loading chart"></div>
+          </div>
+          <canvas ref="evaluatorsChartRef"></canvas>
+        </div>
+        <div
+          v-else
+          class="criteria-chart-wrap position-relative"
+          style="min-height: 220px"
+        >
+          <div v-if="expectedLoading" class="chart-loading-overlay">
+            <div class="spinner-border text-primary" role="status" aria-label="Loading chart"></div>
+          </div>
+          <canvas ref="evaluateesChartRef"></canvas>
+        </div>
+      </div>
+    </div>
+
     
 
     <div class="card mb-3">
       <div class="card-body">
-        <h5 class="mb-3">Evaluated Teachers</h5>
-
-        <div v-if="teachers.length === 0" class="text-muted">No teacher data available.</div>
-        <ul v-else class="list-group">
-          <li
-            v-for="t in teachers"
-            :key="t.id"
-            class="d-flex justify-content-between align-items-center teacher-list-item"
-          >
-            <div>
-              <div class="ch5 mb-0">{{ t.name || t.teacherName || t.id }}</div>
-              <div class="body2 text-muted">
-                {{ t.subjectCode || '' }} {{ t.subjectName ? '— ' + t.subjectName : '' }}
-              </div>
-            </div>
-            <div>
-              <button
-                class="btn btn-outline-primary btn-sm rounded-pill review-btn"
-                @click="viewTeacher(t.id)"
-              >
-                Review
-              </button>
-            </div>
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              :class="activeTab === 'student' ? 'active' : ''"
+              type="button"
+              role="tab"
+              @click="activeTab = 'student'"
+            >
+              Students → Faculty
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              :class="activeTab === 'fac-fac' ? 'active' : ''"
+              type="button"
+              role="tab"
+              @click="activeTab = 'fac-fac'"
+            >
+              Faculty → Faculty
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link"
+              :class="activeTab === 'fac-admin' ? 'active' : ''"
+              type="button"
+              role="tab"
+              @click="activeTab = 'fac-admin'"
+            >
+              Faculty → Admin
+            </button>
           </li>
         </ul>
+
+        <!-- Students -> Faculty -->
+        <div v-show="activeTab === 'student'">
+          <h5 class="mb-3">Evaluated Teachers</h5>
+          <div v-if="teachers.length === 0" class="text-muted">No teacher data available.</div>
+          <ul v-else class="list-group">
+            <li
+              v-for="t in teachers"
+              :key="t.id"
+              class="d-flex justify-content-between align-items-center teacher-list-item"
+            >
+              <div>
+                <div class="ch5 mb-0">{{ t.name || t.teacherName || t.id }}</div>
+                <div class="body2 text-muted">
+                  {{ t.subjectCode || '' }} {{ t.subjectName ? '— ' + t.subjectName : '' }}
+                </div>
+              </div>
+              <div>
+                <button
+                  class="btn btn-outline-primary btn-sm rounded-pill review-btn"
+                  @click="viewEvaluatee(t.id, 'student')"
+                >
+                  Review
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Faculty -> Faculty -->
+        <div v-show="activeTab === 'fac-fac'">
+          <h5 class="mb-3">Evaluated Faculty</h5>
+          <div v-if="evaluatedFaculty.length === 0" class="text-muted">No faculty data available.</div>
+          <ul v-else class="list-group">
+            <li
+              v-for="f in evaluatedFaculty"
+              :key="f.id"
+              class="d-flex justify-content-between align-items-center teacher-list-item"
+            >
+              <div>
+                <div class="ch5 mb-0">{{ f.name || f.displayName || f.id }}</div>
+              </div>
+              <div>
+                <button
+                  class="btn btn-outline-primary btn-sm rounded-pill review-btn"
+                  @click="viewEvaluatee(f.id, 'faculty')"
+                >
+                  Review
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Faculty -> Admin -->
+        <div v-show="activeTab === 'fac-admin'">
+          <h5 class="mb-3">Evaluated Administrators</h5>
+          <div v-if="evaluatedAdmins.length === 0" class="text-muted">No admin data available.</div>
+          <ul v-else class="list-group">
+            <li
+              v-for="a in evaluatedAdmins"
+              :key="a.id"
+              class="d-flex justify-content-between align-items-center teacher-list-item"
+            >
+              <div>
+                <div class="ch5 mb-0">{{ a.name || a.displayName || a.id }}</div>
+              </div>
+              <div>
+                <button
+                  class="btn btn-outline-primary btn-sm rounded-pill review-btn"
+                  @click="viewEvaluatee(a.id, 'admin')"
+                >
+                  Review
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
@@ -103,6 +237,7 @@ import { useCriteriaStore } from '@/store/criteriaStore'
 import { useQuestionStore } from '@/store/questionsStore'
 import { useFacultyStore } from '@/store/facultyStore'
 import { useStudentStore } from '@/store/studentStore'
+import { useUserStore } from '@/store/userStore'
 import { db } from '@/firebase'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import Chart from 'chart.js/auto'
@@ -114,6 +249,7 @@ const criteriaStore = useCriteriaStore()
 const questionStore = useQuestionStore()
 const facultyStore = useFacultyStore()
 const studentStore = useStudentStore()
+const userStore = useUserStore()
 
 const loading = ref(true)
 const evaluation = ref(null)
@@ -122,13 +258,23 @@ let nowInterval = null
 const totalResponses = ref(0)
 const groupedStats = ref([])
 const teachers = ref([])
+const evaluatedFaculty = ref([])
+const evaluatedAdmins = ref([])
 const evaluatedTeacherCount = ref(0)
+const activeTab = ref('student')
 const timeRemaining = ref('N/A')
 const doughnutRef = ref(null)
 const barRef = ref(null)
 const numberOfQuestions = ref(0)
 let doughnutChart = null
 let barChart = null
+const expectedMode = ref('evaluators')
+const evaluatorsChartRef = ref(null)
+const evaluateesChartRef = ref(null)
+let evaluatorsChart = null
+let evaluateesChart = null
+const responsesData = ref([])
+const expectedLoading = ref(true)
 
 const formatDate = (d) => {
   if (!d) return 'N/A'
@@ -166,6 +312,16 @@ const statusClass = computed(() => {
   return 'bg-light text-muted'
 })
 
+const viewEvaluatee = (id, type) => {
+  // type: 'student' | 'faculty' | 'admin'
+  const evaluationId = route.params.evaluationId
+  const evaluationType = type === 'faculty' ? 'faculty' : type === 'admin' ? 'admin' : undefined
+  router.push({
+    name: 'StudentEvaluationViewMain',
+    params: { evaluationId, teacherId: id, evaluationType },
+  })
+}
+
 onMounted(async () => {
   loading.value = true
   try {
@@ -183,9 +339,10 @@ onMounted(async () => {
     nowInterval = setInterval(() => (now.value = new Date()), 30000)
 
     // fetch responses for this evaluation
-    const rQ = query(collection(db, 'Responses'), where('evaluationId', '==', evaluationId))
-    const rSnap = await getDocs(rQ)
-    const responses = rSnap.docs.map((d) => d.data())
+  const rQ = query(collection(db, 'Responses'), where('evaluationId', '==', evaluationId))
+  const rSnap = await getDocs(rQ)
+  const responses = rSnap.docs.map((d) => d.data())
+  responsesData.value = responses
     totalResponses.value = responses.length
 
     const updateRemaining = () => {
@@ -205,17 +362,34 @@ onMounted(async () => {
     // keep timeRemaining in sync when now or evaluation changes
     watch([now, evaluation], updateRemaining)
 
-    // build teacher counts
-    const teacherMap = {}
+    // build evaluated persons per evaluation type
+    const teacherMap = {} // student -> faculty (uses teacherId)
+    const facultyEvaluateeMap = {} // faculty->faculty (uses evaluateeId)
+    const adminEvaluateeMap = {} // faculty->admin (uses evaluateeId)
+
+    const normalizeType = (t) => (t || '').toString().toLowerCase()
     for (const r of responses) {
-      const tid = r.teacherId
-      teacherMap[tid] = (teacherMap[tid] || 0) + 1
+      if (r.teacherId) {
+        teacherMap[r.teacherId] = (teacherMap[r.teacherId] || 0) + 1
+      } else if (normalizeType(r.evaluationContext) === 'faculty') {
+        const t = normalizeType(r.evaluationType)
+        if (t === 'faculty' || t === 'faculty-to-faculty') {
+          const id = r.evaluateeId
+          facultyEvaluateeMap[id] = (facultyEvaluateeMap[id] || 0) + 1
+        } else if (t === 'admin' || t === 'faculty-to-administrator') {
+          const id = r.evaluateeId
+          adminEvaluateeMap[id] = (adminEvaluateeMap[id] || 0) + 1
+        }
+      }
     }
 
-    // fetch faculties and students (authoritative system-wide counts)
-    await facultyStore.fetchFaculty()
-    await studentStore.fetchStudents()
+    // fetch reference data
+    await Promise.all([facultyStore.fetchFaculty(), studentStore.fetchStudents(), userStore.fetchAllUsers()])
     const faculties = facultyStore.faculties || []
+    const allUsers = userStore.users || []
+    const admins = allUsers.filter((u) => (u.role || '').toString().toLowerCase().includes('admin'))
+
+    // Students -> Faculty list
     teachers.value = Object.keys(teacherMap).map((tid) => {
       const f = faculties.find((x) => x.id === tid) || { id: tid, name: tid }
       return {
@@ -225,7 +399,27 @@ onMounted(async () => {
       }
     })
 
-    evaluatedTeacherCount.value = teachers.value.filter((t) => (t.count || 0) > 0).length
+    // Faculty -> Faculty list
+    evaluatedFaculty.value = Object.keys(facultyEvaluateeMap).map((fid) => {
+      const f = faculties.find((x) => x.id === fid) || { id: fid, name: fid }
+      return {
+        id: fid,
+        name: f.name || f.teacherName || f.displayName || fid,
+        count: facultyEvaluateeMap[fid],
+      }
+    })
+
+    // Faculty -> Admin list
+    evaluatedAdmins.value = Object.keys(adminEvaluateeMap).map((aid) => {
+      const a = admins.find((x) => x.id === aid) || { id: aid, name: aid }
+      return {
+        id: aid,
+        name: a.name || a.displayName || a.email || aid,
+        count: adminEvaluateeMap[aid],
+      }
+    })
+
+  evaluatedTeacherCount.value = teachers.value.filter((t) => (t.count || 0) > 0).length
 
     // Build question map and accumulate answers
     await criteriaStore.fetchCriterias()
@@ -296,7 +490,7 @@ onMounted(async () => {
         const start = Date.now()
         while (Date.now() - start < ms) {
           if (r.value) return true
-          // eslint-disable-next-line no-await-in-loop
+           
           await new Promise((res) => setTimeout(res, interval))
         }
         return !!r.value
@@ -407,10 +601,217 @@ onMounted(async () => {
     } catch (err) {
       console.error('Failed to render charts', err)
     }
+
+    // After general charts, render expected participation charts
+    await nextTick()
+    try {
+      expectedLoading.value = true
+      // ensure canvases are in DOM
+      const waitForRef = async (r, ms = 1500, interval = 50) => {
+        const start = Date.now()
+        while (Date.now() - start < ms) {
+          if (r.value) return true
+           
+          await new Promise((res) => setTimeout(res, interval))
+        }
+        return !!r.value
+      }
+      // only one canvas exists at a time due to v-if/v-else
+      await waitForRef(evaluatorsChartRef)
+      renderExpectedCharts({ faculties, students: studentStore.students || [], admins, responses: responsesData.value })
+    } catch (err) {
+      console.error('Failed to render expected participation charts', err)
+    } finally {
+      expectedLoading.value = false
+    }
   } catch (err) {
     console.error('Failed to load evaluation summary', err)
   } finally {
     loading.value = false
+  }
+})
+
+onBeforeUnmount(() => {
+  try { if (evaluatorsChart) evaluatorsChart.destroy() } catch (_) {}
+  try { if (evaluateesChart) evaluateesChart.destroy() } catch (_) {}
+})
+
+const getProgram = (u = {}) =>
+  u.program || u.course || u.programName || u.program_code || u.strand || u.track || u.department || 'Unknown'
+const getDepartment = (u = {}) =>
+  u.department || u.dept || u.office || u.unit || u.college || 'Unknown'
+
+const groupCount = (items, keyFn) => {
+  const map = {}
+  for (const it of items || []) {
+    const k = String(keyFn(it) || 'Unknown')
+    map[k] = (map[k] || 0) + 1
+  }
+  // sort by count desc
+  return Object.entries(map)
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
+const renderExpectedCharts = ({ faculties, students, admins, responses }) => {
+  // Evaluators: Students by Program + Faculty by Department
+  const studByProg = groupCount(students, getProgram).map((x) => ({
+    label: `${x.label} (Students)`,
+    count: x.count,
+  }))
+  const facByDept = groupCount(faculties, getDepartment).map((x) => ({
+    label: `${x.label} (Faculty)`,
+    count: x.count,
+  }))
+  const evalr = [...studByProg, ...facByDept]
+
+  // Evaluatees: Faculty by Department + Admins by Department
+  const evaleeFaculty = groupCount(faculties, getDepartment).map((x) => ({
+    label: `${x.label} (Faculty)`,
+    count: x.count,
+  }))
+  const evaleeAdmins = groupCount(admins, getDepartment).map((x) => ({
+    label: `${x.label} (Admins)`,
+    count: x.count,
+  }))
+  const evale = [...evaleeFaculty, ...evaleeAdmins]
+
+  // Answered counts derived from responses
+  const normalizeType = (t) => (t || '').toString().toLowerCase()
+  const studentsById = Object.fromEntries((students || []).map((s) => [s.id, s]))
+  const facultyById = Object.fromEntries((faculties || []).map((f) => [f.id, f]))
+  const adminsById = Object.fromEntries((admins || []).map((a) => [a.id, a]))
+
+  const inc = (map, key) => {
+    const k = String(key || 'Unknown')
+    map[k] = (map[k] || 0) + 1
+  }
+
+  const evalrAnswered = {}
+  const evaleAnswered = {}
+  for (const r of responses || []) {
+    // Student → Faculty evaluator counts by student program
+    if (r.studentId) {
+      const st = studentsById[r.studentId] || {}
+      inc(evalrAnswered, `${getProgram(st)} (Students)`)
+      // Evaluatee is a teacher; count by department as evaluatee
+      const t = facultyById[r.teacherId] || {}
+      inc(evaleAnswered, `${getDepartment(t)} (Faculty)`)
+      continue
+    }
+
+    // Faculty-context responses
+    if (normalizeType(r.evaluationContext) === 'faculty') {
+      const t = normalizeType(r.evaluationType)
+      // evaluator is a faculty
+      const evr = facultyById[r.evaluatorId] || {}
+      inc(evalrAnswered, `${getDepartment(evr)} (Faculty)`)
+      // evaluatee: faculty or admin
+      if (t === 'faculty' || t === 'faculty-to-faculty') {
+        const ef = facultyById[r.evaluateeId] || {}
+        inc(evaleAnswered, `${getDepartment(ef)} (Faculty)`)
+      } else if (t === 'admin' || t === 'faculty-to-administrator') {
+        const ea = adminsById[r.evaluateeId] || {}
+        inc(evaleAnswered, `${getDepartment(ea)} (Admins)`)
+      }
+    }
+  }
+
+  // Merge expected and answered for aligned labels (prefer expected sort order)
+  const mergeForChart = (expectedArr, answeredMap) => {
+    const labels = expectedArr.map((x) => x.label)
+    const expValues = expectedArr.map((x) => x.count)
+    const ansValues = expectedArr.map((x) => Number(answeredMap[x.label] || 0))
+    return { labels, expValues, ansValues }
+  }
+
+  const buildBar = (canvas, labelsRaw, values) => {
+    const labels = labelsRaw.map((n) => (n.length > 32 ? n.slice(0, 31) + '…' : n))
+    // Dynamically size canvas for better first-render reliability
+    try {
+      const desired = Math.max(220, (labelsRaw.length || 1) * 26)
+      if (canvas && canvas.height !== desired) canvas.height = desired
+    } catch (_) {}
+    return new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: values, // array of datasets prepared by caller
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, ticks: { precision: 0 } },
+          y: { ticks: { autoSkip: false } },
+        },
+        plugins: { legend: { display: true } },
+      },
+    })
+  }
+
+  // Evaluators chart
+  if (evaluatorsChartRef.value) {
+    try { if (evaluatorsChart) evaluatorsChart.destroy() } catch (_) {}
+    const merged = mergeForChart(evalr, evalrAnswered)
+    const datasets = [
+      {
+        label: 'Expected',
+        data: merged.expValues,
+        backgroundColor: '#c7d2fe',
+        barThickness: 12,
+        borderRadius: 4,
+      },
+      {
+        label: 'Answered',
+        data: merged.ansValues,
+        backgroundColor: '#4f46e5',
+        barThickness: 12,
+        borderRadius: 4,
+      },
+    ]
+    evaluatorsChart = buildBar(evaluatorsChartRef.value, merged.labels, datasets)
+  }
+
+  // Evaluatees chart
+  if (evaluateesChartRef.value) {
+    try { if (evaluateesChart) evaluateesChart.destroy() } catch (_) {}
+    const merged = mergeForChart(evale, evaleAnswered)
+    const datasets = [
+      {
+        label: 'Expected',
+        data: merged.expValues,
+        backgroundColor: '#fde68a',
+        barThickness: 12,
+        borderRadius: 4,
+      },
+      {
+        label: 'Answered',
+        data: merged.ansValues,
+        backgroundColor: '#f59e0b',
+        barThickness: 12,
+        borderRadius: 4,
+      },
+    ]
+    evaluateesChart = buildBar(evaluateesChartRef.value, merged.labels, datasets)
+  }
+}
+
+watch(expectedMode, async () => {
+  // re-render sizes if switching
+  await nextTick()
+  try {
+    expectedLoading.value = true
+    renderExpectedCharts({
+      faculties: facultyStore.faculties || [],
+      students: studentStore.students || [],
+      admins: (userStore.users || []).filter((u) => (u.role || '').toString().toLowerCase().includes('admin')),
+      responses: responsesData.value,
+    })
+  } catch (_) {}
+  finally {
+    expectedLoading.value = false
   }
 })
 
@@ -544,5 +945,19 @@ const goBack = () => {
 }
 .body2 {
   color: @text-secondary;
+}
+
+/* Charts loading overlay */
+.criteria-chart-wrap {
+  position: relative;
+}
+.chart-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  border-radius: 8px;
 }
 </style>
