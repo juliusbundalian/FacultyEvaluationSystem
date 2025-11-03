@@ -302,7 +302,80 @@ const averagesByCriteria = ref([])
 const studentStore = useStudentStore()
 
 // Chart.js setup for per-criteria averages (horizontal bar)
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend, Title)
+
+// Custom plugin to draw value labels near the end of each bar with a rounded background box
+const valueLabelPlugin = {
+  id: 'valueLabel',
+  afterDatasetsDraw(chart, args, opts) {
+    const { ctx, data, scales } = chart
+    const ds = data?.datasets?.[0]
+    if (!ds) return
+    const meta = chart.getDatasetMeta(0)
+    const font = opts?.font || { size: 12, weight: '600' }
+    const textColor = opts?.textColor || '#ffffff'
+    const bgColor = opts?.backgroundColor || '#0000AE'
+    const outsideText = opts?.outsideTextColor || '#ffffff'
+    const outsideBg = opts?.outsideBackgroundColor || '#0000AE'
+    const padX = typeof opts?.paddingX === 'number' ? opts.paddingX : 8
+    const padY = typeof opts?.paddingY === 'number' ? opts.paddingY : 4
+    const radius = typeof opts?.radius === 'number' ? opts.radius : 6
+    ctx.save()
+    const family = getComputedStyle(document.documentElement).getPropertyValue('--bs-body-font-family') || 'Arial, sans-serif'
+    ctx.font = `${font.weight || ''} ${font.size || 12}px ${family}`.trim()
+
+    const drawRRect = (c, x, y, w, h, r) => {
+      const rr = Math.min(r, h / 2, w / 2)
+      c.beginPath()
+      c.moveTo(x + rr, y)
+      c.arcTo(x + w, y, x + w, y + h, rr)
+      c.arcTo(x + w, y + h, x, y + h, rr)
+      c.arcTo(x, y + h, x, y, rr)
+      c.arcTo(x, y, x + w, y, rr)
+      c.closePath()
+    }
+
+    meta.data.forEach((bar, i) => {
+      const value = Number(ds.data?.[i])
+      if (Number.isNaN(value)) return
+      const label = value.toFixed(2)
+      const xEnd = bar.x // end of the horizontal bar
+      const xStart = bar.base // start (scale min)
+      const y = bar.y
+      const textW = ctx.measureText(label).width
+      const boxW = textW + padX * 2
+      const boxH = (font.size || 12) + padY * 2
+      const innerSpace = xEnd - xStart
+
+      if (innerSpace > boxW + 6) {
+        // draw inside the bar at the end
+        const bx = xEnd - boxW - 4
+        const by = y - boxH / 2
+        ctx.fillStyle = bgColor
+        drawRRect(ctx, bx, by, boxW, boxH, radius)
+        ctx.fill()
+        ctx.fillStyle = textColor
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(label, bx + boxW / 2, y)
+      } else {
+        // draw outside to the right of the bar
+        const bx = xEnd + 6
+        const by = y - boxH / 2
+        ctx.fillStyle = outsideBg
+        drawRRect(ctx, bx, by, boxW, boxH, radius)
+        ctx.fill()
+        ctx.fillStyle = outsideText
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(label, bx + boxW / 2, y)
+      }
+    })
+
+    ctx.restore()
+  },
+}
+Chart.register(valueLabelPlugin)
 const criteriaChartRef = ref(null)
 let criteriaChart = null
 const criteriaViewMode = ref('chart')
@@ -338,7 +411,32 @@ const renderCriteriaChart = async () => {
   if (!canvas || criteriaViewMode.value !== 'chart') return
 
   const labelsRaw = (criteriaSummary.value || []).map((c) => c.name)
-  const labels = labelsRaw.map((n) => (n.length > 28 ? n.slice(0, 27) + '…' : n))
+  // Wrap labels onto multiple lines instead of truncating so full titles are readable
+  const wrapLabel = (text, maxLen = 28) => {
+    if (!text) return ['']
+    const words = String(text).split(' ')
+    const lines = []
+    let cur = ''
+    for (const w of words) {
+      if ((cur + ' ' + w).trim().length <= maxLen) {
+        cur = (cur ? cur + ' ' : '') + w
+      } else {
+        if (cur) lines.push(cur)
+        // if a single word is longer than max, hard-split
+        if (w.length > maxLen) {
+          for (let i = 0; i < w.length; i += maxLen) lines.push(w.slice(i, i + maxLen))
+          cur = ''
+        } else {
+          cur = w
+        }
+      }
+    }
+    if (cur) lines.push(cur)
+    return lines
+  }
+  const labels = labelsRaw.map((n) => wrapLabel(n, 28))
+  const lineCounts = labels.map((l) => (Array.isArray(l) ? l.length : 1))
+  const maxLines = Math.max(1, ...lineCounts)
   const data = (criteriaSummary.value || []).map((c) => Number(c.avg?.toFixed(2)) || 0)
 
   try {
@@ -353,7 +451,8 @@ const renderCriteriaChart = async () => {
   const ctx = canvas.getContext('2d')
   // compact: tight height per bar
   if (labels.length > 0) {
-    const desired = Math.max(200, labels.length * 26)
+    const perBar = 32 + (maxLines - 1) * 12
+    const desired = Math.max(240, labels.length * perBar)
     if (canvas.height !== desired) canvas.height = desired
   }
 
@@ -365,11 +464,11 @@ const renderCriteriaChart = async () => {
         {
           label: 'Average',
           data,
-          backgroundColor: '#4f46e5',
-          borderRadius: 4,
-          barThickness: 12,
-          categoryPercentage: 0.9,
-          barPercentage: 0.9,
+          backgroundColor: '#0000AE',
+          borderRadius: 6,
+          barThickness: 20,
+          categoryPercentage: 0.7,
+          barPercentage: 0.7,
         },
       ],
     },
@@ -377,29 +476,55 @@ const renderCriteriaChart = async () => {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { left: 4, right: 8, top: 4, bottom: 4 } },
+      layout: { padding: { left: 12, right: 16, top: 12, bottom: 12 } },
       scales: {
         x: {
           min: 1,
           max: 5,
-          ticks: { stepSize: 1, color: '#6b7280', font: { size: 10 } },
-          grid: { color: 'rgba(0,0,0,0.05)' },
+          display: true,
+          ticks: { stepSize: 1, color: '#4b5563', font: { size: 12, weight: '500' } },
+          grid: { color: 'rgba(0,0,0,0.06)', drawBorder: false },
         },
         y: {
-          ticks: { color: '#374151', font: { size: 11 }, autoSkip: false },
+          ticks: {
+            color: '#111827',
+            font: { size: 13, weight: '600' },
+            autoSkip: false,
+            padding: 10,
+            align: 'center',
+            crossAlign: 'near',
+          },
           grid: { display: false },
         },
       },
       plugins: {
         legend: { display: false },
+        title: {
+          display: false, // title is shown in the card header; keep chart title off to avoid duplication
+          text: 'Average score per criteria',
+          color: '#22303e',
+          font: { size: 14, weight: '600' },
+          padding: { bottom: 8 },
+        },
         tooltip: {
           callbacks: {
             title: (items) => {
               const i = items?.[0]?.dataIndex ?? 0
               return labelsRaw[i] || ''
             },
-            label: (ctx) => `Average: ${ctx.raw}`,
+            label: (ctx) => `Average: ${Number(ctx.raw).toFixed(2)}`,
           },
+        },
+        // options for the custom valueLabel plugin
+        valueLabel: {
+          textColor: '#ffffff',
+          outsideTextColor: '#ffffff',
+          backgroundColor: '#0000AE',
+          outsideBackgroundColor: '#0000AE',
+          font: { size: 12, weight: '600' },
+          paddingX: 10,
+          paddingY: 5,
+          radius: 6,
         },
       },
     },
@@ -1059,6 +1184,9 @@ onUnmounted(() => {
   .ch5;
   color: @text-primary;
 }
+.criteria-block + .criteria-block {
+  margin-top: 12px;
+}
 .question-text {
   .body1;
   color: @text-primary;
@@ -1134,6 +1262,8 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   min-height: 200px;
+  margin-top: 8px;
+  margin-bottom: 10px;
 }
 .truncate {
   max-width: 520px;

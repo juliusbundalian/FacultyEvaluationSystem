@@ -10,11 +10,8 @@
     <div class="d-flex flex-column flex-lg-row gap-4">
       <div
         class="flex-fill card p-3"
-        :class="{
-          selected: settingsStore.currentEvaluationType === 'students-to-faculty',
-          disabled: switching,
-        }"
-        @click="!switching && handleTypeSelect('students-to-faculty')"
+        :class="{ selected: isSelected(EVALUATION_TYPES.STUDENTS_TO_FACULTY), disabled: switching }"
+        @click="!switching && handleTypeSelect(EVALUATION_TYPES.STUDENTS_TO_FACULTY)"
       >
         <div class="card-body">
           <div class="d-flex gap-4">
@@ -31,11 +28,8 @@
 
       <div
         class="flex-fill card p-3"
-        :class="{
-          selected: settingsStore.currentEvaluationType === 'faculty-to-faculty',
-          disabled: switching,
-        }"
-        @click="!switching && handleTypeSelect('faculty-to-faculty')"
+        :class="{ selected: isSelected(EVALUATION_TYPES.FACULTY_TO_FACULTY), disabled: switching }"
+        @click="!switching && handleTypeSelect(EVALUATION_TYPES.FACULTY_TO_FACULTY)"
       >
         <div class="card-body">
           <div class="d-flex gap-4">
@@ -52,11 +46,8 @@
 
       <div
         class="flex-fill card p-3"
-        :class="{
-          selected: settingsStore.currentEvaluationType === 'faculty-to-administrator',
-          disabled: switching,
-        }"
-        @click="!switching && handleTypeSelect('faculty-to-administrator')"
+        :class="{ selected: isSelected(EVALUATION_TYPES.FACULTY_TO_ADMINISTRATOR), disabled: switching }"
+        @click="!switching && handleTypeSelect(EVALUATION_TYPES.FACULTY_TO_ADMINISTRATOR)"
       >
         <div class="card-body">
           <div class="d-flex gap-4">
@@ -82,11 +73,12 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSettingsStore } from '@/store/settingsStore'
+import { EVALUATION_TYPES } from '@/utils/initializeSettings'
 
 export default {
   name: 'EvaluationView',
   setup() {
-    const settingsStore = useSettingsStore()
+  const settingsStore = useSettingsStore()
     const switching = ref(false)
     const router = useRouter()
     const route = useRoute()
@@ -168,10 +160,14 @@ export default {
       }
     }
 
+    const isSelected = (type) => settingsStore.currentEvaluationType === type
+
     return {
       settingsStore,
       switching,
       handleTypeSelect,
+      isSelected,
+      EVALUATION_TYPES,
     }
   },
 }

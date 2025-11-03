@@ -2,9 +2,25 @@
   <header class="topbar w-100 border-bottom">
     <div class="container-fluid">
       <div class="row align-items-center justify-content-end">
-        <div v-if="showMenu" class="col-6 d-sm-none ps-4">
+        <!-- Mobile-left area: show Back on student/faculty profiles, else burger on /main -->
+        <div v-if="isProfileView || showMenu" class="col-6 d-sm-none ps-4">
           <div class="d-flex align-items-center gap-3">
-            <div class="menu-button" @click="$emit('toggle-sidebar')">
+            <div
+              v-if="isProfileView"
+              class="menu-button"
+              @click="goBack"
+              title="Back"
+              aria-label="Back"
+            >
+              <span class="icon">arrow_back</span>
+            </div>
+            <div
+              v-else
+              class="menu-button"
+              @click="$emit('toggle-sidebar')"
+              title="Menu"
+              aria-label="Menu"
+            >
               <span class="icon">menu</span>
             </div>
             <div class="page-title body-bold-md"></div>
@@ -88,10 +104,10 @@
                   <li><hr class="dropdown-divider" /></li>
 
                   <!-- Menu Items -->
-                  <li class="dropdown-item d-flex align-items-center gap-2">
+                  <li class="dropdown-item d-flex align-items-center gap-2" @click="navTo(profileRoute)">
                     <span class="icon">person</span> Profile
                   </li>
-                  <li class="dropdown-item d-flex align-items-center gap-2">
+                  <li class="dropdown-item d-flex align-items-center gap-2" @click="navTo('/main')">
                     <span class="icon">settings</span> Settings
                   </li>
 
@@ -126,8 +142,19 @@ export default {
     const authStore = useAuthStore()
     const route = useRoute()
     const showMenu = computed(() => (route.path || '').startsWith('/main'))
+    const isProfileView = computed(() => {
+      const p = route.path || ''
+      return p === '/main/student/profile' || p === '/main/faculty/profile'
+    })
+    const profileRoute = computed(() => {
+      const role = (authStore.userData?.role || '').toString().toLowerCase()
+      if (role.includes('admin')) return '/main/admin/profile'
+      if (role.includes('teacher') || role.includes('faculty')) return '/main/faculty/profile'
+      if (role.includes('student')) return '/main/student/profile'
+      return '/main'
+    })
 
-    return { setTheme, currentTheme, authStore, showMenu }
+    return { setTheme, currentTheme, authStore, showMenu, profileRoute, isProfileView }
   },
   data() {
     return {
@@ -137,6 +164,31 @@ export default {
   methods: {
     toggleDropdown(name) {
       this.activeDropdown = this.activeDropdown === name ? null : name
+    },
+    goBack() {
+      // Prefer history back; if no history or returns to auth, go to /main
+      try {
+        if (window?.history?.length && window.history.length > 1) {
+          this.$router.back()
+        } else {
+          this.$router.push('/main')
+        }
+      } catch (e) {
+        this.$router.push('/main')
+      }
+      this.activeDropdown = null
+    },
+    navTo(path) {
+      try {
+        const target = typeof path === 'string' ? path : (path && path.value) ? path.value : path
+        if (target) {
+          this.$router.push(target)
+        }
+      } catch (e) {
+        console.error('Navigation error:', e)
+      } finally {
+        this.activeDropdown = null
+      }
     },
     handleClickOutside(e) {
       if (!this.$el.contains(e.target)) {
